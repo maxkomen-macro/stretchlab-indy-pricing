@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StretchLab Pricing — Indianapolis (preview)</title>
+<style>
+  :root{ --pur:#7c3aed; --pur-soft:#ede9fe; --ink:#1e1b2e; --mut:#6b7280;
+         --line:#e7e3f3; --bg:#faf9fe; --ok:#15803d; --ok-bg:#dcfce7;
+         --warn:#b45309; --warn-bg:#fef3c7; --wait:#6b7280; --wait-bg:#eef0f3; }
+  *{box-sizing:border-box} body{margin:0;font:15px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;
+    color:var(--ink);background:var(--bg);padding:28px}
+  .wrap{max-width:920px;margin:0 auto}
+  .banner{background:var(--pur-soft);border:1px solid var(--line);color:#4c1d95;
+    border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:22px}
+  h1{font-size:20px;margin:0 0 2px} .sub{color:var(--mut);font-size:13px;margin-bottom:24px}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--pur);
+    margin:30px 0 10px;border-bottom:2px solid var(--pur-soft);padding-bottom:6px}
+  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);
+    border-radius:10px;overflow:hidden}
+  th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);font-size:14px}
+  th{background:#fbfaff;color:var(--mut);font-weight:600;font-size:12px;
+    text-transform:uppercase;letter-spacing:.04em}
+  tr:last-child td{border-bottom:none}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  .brand{font-weight:600}
+  .badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px}
+  .b-ok{background:var(--ok-bg);color:var(--ok)} .b-warn{background:var(--warn-bg);color:var(--warn)}
+  .b-wait{background:var(--wait-bg);color:var(--wait)}
+  .card{background:#fff;border:1px solid var(--line);border-radius:10px;margin-bottom:14px;overflow:hidden}
+  .card h3{margin:0;padding:12px 14px;font-size:14px;background:#fbfaff;border-bottom:1px solid var(--line)}
+  .card h3 small{color:var(--mut);font-weight:400}
+  .empty{color:var(--mut);padding:14px;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">Loading… (run <code>python scraper.py</code> first to generate data/latest.js)</div>
+
+<script src="data/latest.js"></script>
+<script>
+  const fmt = v => v==null ? "—" : "$"+Number(v).toFixed(2).replace(/\.00$/,"");
+  const badge = s => {
+    if(/ok|verified/.test(s)) return `<span class="badge b-ok">${s}</span>`;
+    if(/review|internal|wait|fill/i.test(s)) return `<span class="badge b-wait">${s}</span>`;
+    return `<span class="badge b-warn">${s}</span>`;
+  };
+  function render(d){
+    const headline = s => s.offers.find(o=>o.is_headline && o.price_per_session!=null)
+                       || s.offers.find(o=>o.price_per_session!=null);
+    let h = `<div class="banner">Dev preview — confirms the scraper output renders.
+      The real UI is your existing dashboard; point its data loader at
+      <code>data/latest.json</code> to replace this.</div>
+      <h1>Competitive Pricing — ${d.market}</h1>
+      <div class="sub">Snapshot ${d.snapshot_date} · headline anchor: ~${d.anchor_session_min}-min session</div>`;
+
+    // anchor table
+    h += `<h2>Anchor — effective ~${d.anchor_session_min}-min session</h2>
+      <table><thead><tr><th>Brand</th><th>Location</th>
+      <th class="num">$/session</th><th class="num">$/min</th><th>Status</th></tr></thead><tbody>`;
+    d.studios.forEach(s=>{
+      const o = headline(s);
+      h += `<tr><td class="brand">${s.brand}</td><td>${s.location}</td>
+        <td class="num">${o?fmt(o.price_per_session):"—"}</td>
+        <td class="num">${o?fmt(o.price_per_min):"—"}</td>
+        <td>${badge(o?o.status:"awaiting data")}</td></tr>`;
+    });
+    h += `</tbody></table>`;
+
+    // full inventory
+    h += `<h2>Full inventory</h2>`;
+    d.studios.forEach(s=>{
+      h += `<div class="card"><h3>${s.brand} — ${s.location}
+        <small>· ${s.source.method}</small></h3>`;
+      const priced = s.offers.filter(o=>o.price!=null);
+      if(!priced.length){ h += `<div class="empty">Awaiting data (${s.offers[0]?.status||"—"})</div>`; }
+      else{
+        h += `<table><tbody>`;
+        priced.forEach(o=>{
+          h += `<tr><td>${o.name} <small style="color:var(--mut)">${o.structure||""}</small></td>
+            <td class="num">${fmt(o.price)}</td>
+            <td class="num">${o.price_per_min!=null?fmt(o.price_per_min)+"/min":""}</td>
+            <td>${badge(o.status)}</td></tr>`;
+        });
+        h += `</tbody></table>`;
+      }
+      h += `</div>`;
+    });
+    document.getElementById("app").innerHTML = h;
+  }
+  if(window.PRICING_DATA) render(window.PRICING_DATA);
+</script>
+</body>
+</html>

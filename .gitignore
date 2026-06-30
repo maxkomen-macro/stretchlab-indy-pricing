@@ -1,0 +1,14 @@
+# Python virtual environment
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Confidential & generated pricing data — NEVER commit.
+# Holds StretchLab internal pricing and live competitor snapshots.
+data/manual_entries.csv
+data/latest.json
+data/latest.js
+data/snapshots/
+
+# NOTE: data/manual_entries.example.csv (public competitor template) IS committed.

@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StretchLab Competitive Pricing Benchmark</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root{
+    --bg:#EEF1F6;--panel:#FFFFFF;--ink:#161D2B;--ink-soft:#5A647A;--ink-faint:#8A93A6;
+    --line:#E2E7F0;--line-strong:#CDD5E3;
+    --violet:#5B4FA8;--violet-soft:#EDEAF7;
+    --teal:#0E9F6E;--teal-soft:#E2F5EE;
+    --amber:#D97706;--amber-soft:#FBEEDC;
+    --blue:#2563C9;--blue-soft:#E5EEFB;
+    --gray-chip:#8A93A6;--radius:14px;
+    --shadow:0 1px 2px rgba(22,29,43,.04),0 8px 24px rgba(22,29,43,.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--ink);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+  .num{font-family:'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;}
+
+  .topbar{display:flex;align-items:center;gap:16px;padding:13px 24px;background:var(--ink);color:#fff;}
+  .brandmark{width:30px;height:30px;border-radius:8px;flex:none;background:linear-gradient(135deg,var(--violet),#8E7BD6);display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:700;font-size:15px;}
+  .topbar h1{font-family:'Space Grotesk';font-weight:600;font-size:15.5px;margin:0;}
+  .topbar .sub{font-size:11.5px;color:#A8B0C2;margin-top:1px;}
+  .sample-badge{background:var(--amber);color:#231405;font-weight:600;font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;padding:5px 10px;border-radius:999px;}
+  .topbar .spacer{flex:1;}
+  .health-mini{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:#A8B0C2;}
+  .health-mini .d{width:8px;height:8px;border-radius:50%;background:var(--teal);}
+  .refresh-meta{font-size:11.5px;color:#A8B0C2;text-align:right;}
+  .refresh-meta b{color:#fff;font-weight:500;}
+
+  .sample-strip{background:var(--amber-soft);border-bottom:1px solid #F0DDBE;color:#7A4A0C;font-size:12px;padding:7px 24px;text-align:center;}
+  .sample-strip b{font-weight:600;}
+
+  /* tab bar */
+  .tabbar{display:flex;align-items:center;gap:2px;padding:0 20px;background:#fff;border-bottom:1px solid var(--line);}
+  .tabbtn{border:0;background:transparent;color:var(--ink-soft);font-family:'Inter';font-weight:600;font-size:13.5px;padding:14px 16px;cursor:pointer;border-bottom:2.5px solid transparent;display:flex;align-items:center;gap:8px;transition:.13s;}
+  .tabbtn:hover{color:var(--ink);}
+  .tabbtn.active{color:var(--violet);border-bottom-color:var(--violet);}
+  .tabbtn svg{opacity:.85;}
+  .tabbar .spacer{flex:1;}
+  #ctxChip{display:none;align-items:center;gap:7px;font-size:12px;font-weight:500;color:var(--violet);background:var(--violet-soft);padding:6px 12px;border-radius:999px;}
+
+  .shell{display:grid;grid-template-columns:284px 1fr;align-items:start;}
+  .rail{border-right:1px solid var(--line);background:#F6F8FC;height:calc(100vh - 142px);overflow-y:auto;padding:16px 14px 40px;}
+  .main{height:calc(100vh - 142px);overflow-y:auto;padding:20px 24px 60px;}
+
+  .rail-label{font-size:10.5px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--ink-faint);margin:6px 2px 9px;}
+  .filterbox{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:6px;}
+  .field{display:flex;align-items:center;justify-content:space-between;padding:6px 0;}
+  .field+.field{border-top:1px solid var(--line);}
+  .field .k{font-size:12.5px;color:var(--ink-soft);}
+  .field .v{font-size:12.5px;font-weight:600;}
+  .pill-locked{background:var(--violet-soft);color:var(--violet);font-weight:600;font-size:11px;padding:3px 9px;border-radius:999px;}
+
+  .loc{width:100%;text-align:left;cursor:pointer;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-bottom:8px;transition:.13s;display:block;}
+  .loc:hover{border-color:var(--line-strong);}
+  .loc.active{border-color:var(--violet);box-shadow:0 0 0 2px var(--violet-soft);}
+  .loc .name{font-family:'Space Grotesk';font-weight:600;font-size:13px;}
+  .loc .meta{font-size:11px;color:var(--ink-faint);margin-top:1px;}
+  .loc .postag{font-size:10px;font-weight:600;margin-top:5px;display:inline-block;}
+
+  .combo{position:relative;}
+  .combo-input{width:100%;border:1px solid var(--line-strong);border-radius:10px;padding:9px 34px 9px 12px;font-family:'IBM Plex Mono';font-size:12.5px;color:var(--ink);background:#fff;}
+  .combo-input::placeholder{font-family:'Inter';color:var(--ink-faint);}
+  .combo-input:focus{outline:none;border-color:var(--violet);box-shadow:0 0 0 2px var(--violet-soft);}
+  .combo-arrow{position:absolute;right:5px;top:7px;border:0;background:transparent;color:var(--ink-faint);cursor:pointer;padding:4px;display:flex;}
+  .combo-drop{display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow);max-height:360px;overflow-y:auto;z-index:60;padding:5px;}
+  .combo-drop.open{display:block;}
+  .combo-item{padding:9px 10px;border-radius:8px;cursor:pointer;}
+  .combo-item:hover{background:var(--violet-soft);}
+  .ci-name{font-family:'Space Grotesk';font-weight:600;font-size:13px;}
+  .ci-meta{font-size:11px;color:var(--ink-faint);margin-top:1px;}
+  .combo-empty{padding:12px 10px;font-size:12px;color:var(--ink-faint);}
+  .rail-hint{font-size:10.5px;color:var(--ink-faint);margin:9px 2px 0;line-height:1.4;}
+
+  .panel{display:none;}
+  .panel.active{display:block;animation:fade .3s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+  /* overview */
+  .health{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:16px;}
+  .hlabel{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--ink-faint);margin-right:2px;}
+  .schip{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;font-weight:500;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink-soft);}
+  .schip .d{width:7px;height:7px;border-radius:50%;}
+  .schip.ok .d{background:var(--teal);} .schip.ok b{color:var(--teal);font-weight:600;}
+  .schip.warn{background:var(--amber-soft);border-color:#F0DDBE;color:#9A5800;} .schip.warn .d{background:var(--amber);}
+  .schip.example{background:#fff;border:1px dashed var(--line-strong);color:var(--ink-soft);}
+  .schip.example .tag{background:var(--ink);color:#fff;font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:2px 7px;border-radius:999px;}
+  .ov-title{font-family:'Space Grotesk';font-weight:600;font-size:22px;margin:0 0 3px;}
+  .ov-sub{font-size:12.5px;color:var(--ink-soft);margin-bottom:18px;}
+  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:18px;}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 15px;box-shadow:var(--shadow);}
+  .kpi-v{font-family:'Space Grotesk';font-weight:600;font-size:25px;line-height:1;}
+  .kpi-l{font-size:10.8px;color:var(--ink-soft);margin-top:6px;line-height:1.3;}
+  @media(max-width:1150px){.kpis{grid-template-columns:repeat(3,1fr);}}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:17px 18px;}
+  .card h3{font-size:11px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:var(--ink-faint);margin:0 0 13px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+
+  table{width:100%;border-collapse:collapse;}
+  .ptable th{text-align:right;font-size:10.5px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-faint);padding:0 0 8px;border-bottom:1px solid var(--line);}
+  .ptable th:first-child{text-align:left;}
+  .ptable td{padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;text-align:right;}
+  .ptable td:first-child{text-align:left;font-weight:500;}
+  .ptable tr:last-child td{border-bottom:0;}
+  .tier-len{font-size:10.5px;color:var(--ink-faint);font-weight:400;margin-left:6px;}
+  .delta{font-weight:600;font-size:12px;}
+  .delta.under{color:var(--teal);} .delta.over{color:var(--amber);} .delta.match{color:var(--ink-faint);}
+
+  .poscard{display:flex;flex-direction:column;}
+  .posbody{flex:1;display:flex;flex-direction:column;justify-content:center;}
+  .pos-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;gap:12px;}
+  .pos-verdict{font-family:'Space Grotesk';font-weight:600;font-size:18px;}
+  .pos-verdict.under{color:var(--teal);} .pos-verdict.over{color:var(--amber);} .pos-verdict.match{color:var(--ink-soft);}
+  .pos-sub{font-size:11.5px;color:var(--ink-soft);text-align:right;}
+  .track2{position:relative;height:96px;margin:14px 6px 4px;}
+  .bar{position:absolute;left:0;right:0;top:48px;height:8px;border-radius:5px;background:linear-gradient(90deg,var(--teal-soft),#F1EEFA,var(--amber-soft));border:1px solid var(--line);}
+  .medmark{position:absolute;top:40px;width:2px;height:24px;background:var(--ink-soft);transform:translateX(-50%);border-radius:2px;}
+  .medlab{position:absolute;top:68px;transform:translateX(-50%);font-size:10.5px;color:var(--ink-soft);font-weight:600;white-space:nowrap;}
+  .endlab{position:absolute;top:62px;font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.4px;}
+  .endlab .num{display:block;color:var(--ink-soft);font-size:11px;margin-top:1px;letter-spacing:0;}
+  .slflag{position:absolute;top:4px;transform:translateX(-50%);text-align:center;}
+  .slflag .pill{display:inline-flex;flex-direction:column;align-items:center;background:var(--violet);color:#fff;border-radius:9px;padding:5px 12px;box-shadow:0 2px 8px rgba(91,79,168,.35);white-space:nowrap;line-height:1.15;}
+  .slflag .pill .nm{font-size:8.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;opacity:.82;}
+  .slflag .pill .val{font-family:'IBM Plex Mono';font-weight:600;font-size:14px;}
+  .slflag .stem{width:2px;height:13px;background:var(--violet);margin:3px auto 0;}
+
+  .shead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:18px;}
+  .shead .crumb{font-size:11.5px;color:var(--ink-faint);margin-bottom:3px;}
+  .shead h2{font-family:'Space Grotesk';font-weight:600;font-size:22px;margin:0;}
+  .shead .addr{font-size:12.5px;color:var(--ink-soft);margin-top:2px;}
+  .countpill{font-size:11.5px;color:var(--ink-soft);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 13px;white-space:nowrap;}
+  .countpill b{color:var(--ink);}
+
+  .comp-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;}
+  .typetoggle{display:flex;border:1px solid var(--line-strong);border-radius:999px;overflow:hidden;}
+  .typetoggle button{border:0;background:#fff;color:var(--ink-soft);font-size:12px;font-weight:500;padding:6px 14px;cursor:pointer;}
+  .typetoggle button.active{background:var(--violet);color:#fff;}
+  .ctable th{text-align:right;font-size:10.5px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-faint);padding:0 0 10px;border-bottom:1px solid var(--line);}
+  .ctable th:first-child{text-align:left;}
+  .ctable td{padding:11px 0;border-bottom:1px solid var(--line);font-size:13px;text-align:right;vertical-align:middle;}
+  .ctable td:first-child{text-align:left;}
+  .ctable tr:last-child td{border-bottom:0;}
+  .cname{font-weight:600;font-size:13px;}
+  .ctag{font-size:10.5px;color:var(--ink-faint);margin-top:1px;}
+  .na{color:var(--ink-faint);font-style:italic;font-size:12px;}
+  .chip{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:999px;}
+  .chip .d{width:6px;height:6px;border-radius:50%;}
+  .chip.scraped{background:var(--teal-soft);color:#0A7351;} .chip.scraped .d{background:var(--teal);}
+  .chip.phone{background:var(--amber-soft);color:#9A5800;} .chip.phone .d{background:var(--amber);}
+  .chip.login{background:var(--blue-soft);color:#1B4A9C;} .chip.login .d{background:var(--blue);}
+  .chip.none{background:#EEF1F6;color:var(--gray-chip);} .chip.none .d{background:var(--gray-chip);}
+
+  .ovrow{cursor:pointer;transition:.1s;}
+  .ovrow:hover{background:#F6F8FC;}
+  .ovrow td{padding:11px 6px;} .ovrow td:first-child{padding-left:4px;}
+
+  /* map */
+  .mapbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap;}
+  .mb-left{font-size:13px;display:inline-flex;align-items:center;gap:8px;}
+  .mb-left b{font-family:'Space Grotesk';}
+  .mb-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+  .mb-rad{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft);white-space:nowrap;}
+  .mb-rad select{font-family:'Inter';font-size:12px;border:1px solid var(--line-strong);border-radius:8px;padding:5px 8px;background:#fff;color:var(--ink);cursor:pointer;}
+  .mb-rad select:focus{outline:none;border-color:var(--violet);box-shadow:0 0 0 2px var(--violet-soft);}
+  .mb-dot{width:9px;height:9px;border-radius:50%;background:var(--violet);}
+  .mb-toggle{display:flex;border:1px solid var(--line-strong);border-radius:999px;overflow:hidden;}
+  .mb-toggle button{border:0;background:#fff;color:var(--ink-soft);font-size:12px;font-weight:500;padding:6px 14px;cursor:pointer;}
+  .mb-toggle button.active{background:var(--violet);color:#fff;}
+  .mapcard{padding:0;overflow:hidden;margin-bottom:11px;}
+  #map{height:520px;width:100%;z-index:1;}
+  .snapmap-card{margin-bottom:16px;}
+  .snapmap{height:212px;width:100%;border-radius:10px;overflow:hidden;z-index:1;}
+  .snapmap-empty{height:212px;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--ink-soft);font-size:12px;padding:18px;line-height:1.5;}
+  .map-empty{height:520px;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--ink-soft);font-size:13px;padding:24px;line-height:1.6;}
+  .maplegend{display:flex;gap:15px;align-items:center;margin:0 2px;font-size:11.5px;color:var(--ink-soft);flex-wrap:wrap;}
+  .lg{display:inline-flex;align-items:center;gap:6px;}
+  .lg .dot{width:11px;height:11px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.12);}
+  .lg .ring{width:13px;height:13px;border-radius:50%;border:2px dashed var(--violet);}
+  .pin-ico{border-radius:50%;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);}
+  .leaflet-popup-content{font-family:'Inter';margin:11px 13px;}
+  .pop-name{font-family:'Space Grotesk';font-weight:600;font-size:13.5px;}
+  .pop-row{font-size:12px;color:var(--ink-soft);margin-top:3px;}
+  .pop-row .num{color:var(--ink);font-weight:600;}
+
+  /* trends */
+  .chart-cap{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;}
+  .chart-cap .now{font-family:'IBM Plex Mono';font-weight:600;font-size:20px;}
+  .chart-cap .now .up{color:var(--amber);font-size:13px;margin-left:6px;}
+  .chart-cap .now .down{color:var(--teal);font-size:13px;margin-left:6px;}
+  .bigchart{width:100%;height:auto;display:block;}
+  .trend-row{display:flex;align-items:center;gap:20px;padding:13px 0;border-bottom:1px solid var(--line);}
+  .trend-row:last-child{border-bottom:0;}
+  .trend-row .lbl{flex:1;} .trend-row .lbl .t{font-weight:600;font-size:13px;} .trend-row .lbl .s{font-size:11px;color:var(--ink-faint);margin-top:1px;}
+  .trend-delta{font-family:'IBM Plex Mono';font-weight:600;font-size:14px;width:70px;text-align:right;}
+  .trend-delta.up{color:var(--amber);} .trend-delta.down{color:var(--teal);}
+  .baseline-note{font-size:11.5px;color:var(--ink-soft);background:var(--violet-soft);border-radius:9px;padding:10px 13px;margin-top:14px;}
+  .footnote{font-size:11px;color:var(--ink-faint);margin-top:14px;line-height:1.5;}
+
+  @media (max-width:920px){.shell{grid-template-columns:1fr;}.rail{height:auto;}.main{height:auto;}.grid2{grid-template-columns:1fr;}}
+
+  /* overview controls */
+  .ov-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:13px;flex-wrap:wrap;}
+  .filterchips{display:flex;gap:6px;flex-wrap:wrap;}
+  .fchip{border:1px solid var(--line-strong);background:#fff;color:var(--ink-soft);font-size:11.5px;font-weight:500;padding:5px 11px;border-radius:999px;cursor:pointer;}
+  .fchip.active{background:var(--violet);color:#fff;border-color:var(--violet);}
+  .sortsel{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--ink-soft);}
+  .sortsel select{font-family:'Inter';font-size:12px;border:1px solid var(--line-strong);border-radius:8px;padding:5px 8px;background:#fff;color:var(--ink);cursor:pointer;}
+
+  /* competitor dots on the position bar */
+  .cdot{position:absolute;top:44px;width:11px;height:11px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.12);transform:translateX(-50%);z-index:2;cursor:default;}
+  .cdot-legend{font-size:10.5px;color:var(--ink-faint);margin-top:2px;display:flex;align-items:center;gap:6px;}
+  .cdot-legend .cd{width:9px;height:9px;border-radius:50%;background:var(--teal);border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.12);}
+
+  /* simulator */
+  .sim-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-bottom:16px;}
+  @media(max-width:920px){.sim-grid{grid-template-columns:1fr;}}
+  .simtrack{position:relative;height:120px;margin:30px 8px 8px;}
+  .sim-slider{width:100%;margin-top:26px;-webkit-appearance:none;appearance:none;height:6px;border-radius:5px;background:linear-gradient(90deg,var(--teal-soft),#F1EEFA,var(--amber-soft));outline:none;}
+  .sim-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;background:var(--violet);border:3px solid #fff;box-shadow:0 2px 6px rgba(91,79,168,.4);cursor:pointer;}
+  .sim-slider::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--violet);border:3px solid #fff;box-shadow:0 2px 6px rgba(91,79,168,.4);cursor:pointer;}
+  .sim-cur{position:absolute;top:52px;width:2px;height:20px;background:var(--ink-soft);transform:translateX(-50%);}
+  .sim-curlab{position:absolute;top:74px;transform:translateX(-50%);font-size:10px;color:var(--ink-faint);white-space:nowrap;}
+  .sim-whatif{position:absolute;top:6px;transform:translateX(-50%);text-align:center;transition:left .05s linear;}
+  .sim-whatif .pill{display:inline-flex;flex-direction:column;align-items:center;background:var(--violet);color:#fff;border-radius:9px;padding:5px 13px;box-shadow:0 2px 8px rgba(91,79,168,.35);white-space:nowrap;line-height:1.15;}
+  .sim-whatif .pill .nm{font-size:8.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;opacity:.82;}
+  .sim-whatif .pill .val{font-family:'IBM Plex Mono';font-weight:600;font-size:15px;}
+  .sim-whatif .stem{width:2px;height:16px;background:var(--violet);margin:3px auto 0;}
+  .sim-read{display:flex;flex-direction:column;gap:12px;justify-content:center;}
+  .sim-readline{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding-bottom:11px;border-bottom:1px solid var(--line);}
+  .sim-readline:last-child{border-bottom:0;padding-bottom:0;}
+  .sim-rk{font-size:12px;color:var(--ink-soft);}
+  .sim-rv{font-family:'IBM Plex Mono';font-weight:600;font-size:16px;}
+  .sim-verdict{font-family:'Space Grotesk';font-weight:600;font-size:17px;}
+  .sim-verdict.under{color:var(--teal);} .sim-verdict.over{color:var(--amber);} .sim-verdict.match{color:var(--ink-soft);}
+  .sim-hint{font-size:11px;color:var(--ink-faint);margin-top:13px;line-height:1.5;}
+  .sim-intro{font-size:12.5px;color:var(--ink-soft);margin-bottom:16px;line-height:1.5;}
+  .sim-row{border:1px solid var(--line);border-radius:12px;padding:14px 16px 16px;margin-bottom:12px;background:#FBFCFE;}
+  .sim-rowhead{display:flex;align-items:center;gap:10px;margin-bottom:4px;}
+  .sim-tier{font-family:'Space Grotesk';font-weight:600;font-size:14px;color:var(--ink);border:1px solid var(--line-strong);border-radius:9px;padding:6px 10px;background:#fff;cursor:pointer;}
+  .sim-tier:focus{outline:none;border-color:var(--violet);box-shadow:0 0 0 2px var(--violet-soft);}
+  .sim-assume{font-size:10.5px;color:var(--ink-faint);background:#EEF1F6;border-radius:999px;padding:3px 9px;}
+  .sim-x{margin-left:auto;border:0;background:transparent;color:var(--ink-faint);font-size:13px;cursor:pointer;padding:4px 6px;border-radius:7px;}
+  .sim-x:hover{background:#EEF1F6;color:var(--ink);}
+  .sim-add{border:1px dashed var(--line-strong);background:#fff;color:var(--violet);font-family:'Inter';font-weight:600;font-size:12.5px;padding:9px 14px;border-radius:10px;cursor:pointer;width:100%;}
+  .sim-add:hover{background:var(--violet-soft);border-color:var(--violet);}
+  .sim-row .simtrack{height:84px;margin:26px 8px 6px;}
+  .sim-row .sim-read{display:block;}
+  .sim-row .sim-readline{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);}
+  .sim-row .sim-readline:last-child{border-bottom:0;}
+
+  /* activity feed */
+  .act-controls{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+  .act-item{display:flex;gap:13px;align-items:flex-start;padding:13px 0;border-bottom:1px solid var(--line);}
+  .act-item:last-child{border-bottom:0;}
+  .act-ico{width:30px;height:30px;border-radius:9px;flex:none;display:flex;align-items:center;justify-content:center;}
+  .act-ico.up{background:var(--amber-soft);color:var(--amber);} .act-ico.down{background:var(--teal-soft);color:var(--teal);}
+  .act-ico.new{background:var(--violet-soft);color:var(--violet);} .act-ico.cross{background:var(--blue-soft);color:var(--blue);} .act-ico.flag{background:#EEF1F6;color:var(--gray-chip);}
+  .act-body{flex:1;}
+  .act-t{font-size:13.5px;font-weight:500;} .act-t b{font-weight:600;}
+  .act-s{font-size:11.5px;color:var(--ink-faint);margin-top:2px;}
+  .act-delta{font-family:'IBM Plex Mono';font-weight:600;font-size:13px;white-space:nowrap;text-align:right;}
+  .act-delta.up{color:var(--amber);} .act-delta.down{color:var(--teal);} .act-delta.mut{color:var(--ink-faint);}
+  .act-when{font-size:10.5px;color:var(--ink-faint);margin-top:2px;text-align:right;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brandmark">B</div>
+  <div><h1>Competitive Pricing Benchmark</h1><div class="sub">StretchLab · California pilot</div></div>
+  <span class="sample-badge">Sample data</span>
+  <div class="spacer"></div>
+  <span class="health-mini"><span class="d"></span>System healthy</span>
+  <div class="refresh-meta">last refresh <b>Jun 2026</b><br>next run · Jul 1</div>
+</div>
+
+<div class="sample-strip"><b>Illustrative prototype.</b> Studios, prices, coordinates, and trends are placeholder sample data — not real competitor pricing.</div>
+
+<div class="tabbar">
+  <button class="tabbtn active" data-tab="overview" onclick="showTab('overview')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Overview</button>
+  <button class="tabbtn" data-tab="map" onclick="showTab('map')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>Map</button>
+  <button class="tabbtn" data-tab="snapshot" onclick="showTab('snapshot')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Snapshot</button>
+  <button class="tabbtn" data-tab="trends" onclick="showTab('trends')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 7-7"/><path d="M14 7h6v6"/></svg>Trends</button>
+  <button class="tabbtn" data-tab="simulator" onclick="showTab('simulator')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="8" x2="20" y2="8"/><circle cx="9" cy="8" r="2.4" fill="currentColor"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="15" cy="16" r="2.4" fill="currentColor"/></svg>Simulator</button>
+  <button class="tabbtn" data-tab="activity" onclick="showTab('activity')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>Activity</button>
+  <div class="spacer"></div>
+  <span id="ctxChip"></span>
+</div>
+
+<div class="shell">
+  <aside class="rail">
+    <div class="rail-label">Filters</div>
+    <div class="filterbox">
+      <div class="field"><span class="k">State scope</span><span class="pill-locked">California</span></div>
+      <div class="field"><span class="k">Search radius</span><span class="v num">15 mi</span></div>
+      <div class="field"><span class="k">Competitor set</span><span class="v">Direct + Adjacent</span></div>
+    </div>
+    <div class="rail-label">Find a studio</div>
+    <div class="combo">
+      <input id="studioSearch" class="combo-input" type="text" placeholder="Search zip or studio name…" autocomplete="off" oninput="openCombo()" onfocus="openCombo()">
+      <button class="combo-arrow" onclick="toggleCombo(event)" aria-label="Show all studios"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
+      <div id="comboDrop" class="combo-drop"></div>
+    </div>
+    <div class="rail-hint">Type a zip or name, or tap the arrow for all. The full list lives in the Overview tab.</div>
+  </aside>
+
+  <main class="main">
+    <div id="panel-overview" class="panel active"></div>
+
+    <div id="panel-map" class="panel">
+      <div id="mapbar" class="mapbar"></div>
+      <div class="card mapcard"><div id="map"></div></div>
+      <div class="maplegend">
+        <span class="lg"><span class="dot" style="background:var(--violet)"></span>StretchLab (you)</span>
+        <span class="lg"><span class="dot" style="background:var(--teal)"></span>You&#39;re cheaper</span>
+        <span class="lg"><span class="dot" style="background:var(--amber)"></span>Undercuts you</span>
+        <span class="lg"><span class="dot" style="background:var(--gray-chip)"></span>No price yet</span>
+        <span class="lg"><span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:#fff;border:2.5px solid #94A3B8;box-sizing:border-box"></span>Adjacent (context)</span>
+        <span class="lg"><span class="ring"></span>search radius</span>
+        <span style="color:var(--ink-faint)">· hover a pin for price · click for detail</span>
+      </div>
+    </div>
+
+    <div id="panel-snapshot" class="panel"></div>
+    <div id="panel-trends" class="panel"></div>
+    <div id="panel-simulator" class="panel"></div>
+    <div id="panel-activity" class="panel"></div>
+  </main>
+</div>
+
+<script>
+const MONTHS=["Mar","Apr","May","Jun"];
+function C(name,dLat,dLng,price,status){return {name,dLat,dLng,price,perMin:price?+(price/50).toFixed(2):null,status:status||(price?"scraped":"phone")};}
+function mkTiers(factor,intro){const R=[["Single session","50 min",89],["Single session","25 min",49],["4 / month","50 min",169],["8 / month","50 min",299],["Intro offer","50 min",89]];return R.map(r=>({name:r[0],len:r[1],retail:r[2],listed:(r[0]==="Intro offer"?intro:Math.round(r[2]*factor))}));}
+function S(o){
+  const D=o.d.map(c=>({name:c.name,ll:[o.lat+c.dLat,o.lng+c.dLng],price:c.price,perMin:c.perMin,status:c.status}));
+  const A=o.a.map(c=>({name:c.name,ll:[o.lat+c.dLat,o.lng+c.dLng],price:c.price,perMin:c.perMin,status:c.status}));
+  const s=o.market[0]-2,e=o.market[1];
+  const series=[Math.round(s),Math.round(s+(e-s)*0.45),Math.round(s+(e-s)*0.78),e];
+  const dpct=(((e-s)/s)*100).toFixed(1), overMkt=o.sl>o.market[1];
+  const r2=series.map(x=>x+(o.d[0].price?Math.max(0,o.d[0].price-e):4));
+  const r2pct=(((r2[3]-r2[0])/r2[0])*100).toFixed(1);
+  return {id:o.id,name:"StretchLab — "+o.city,zip:o.zip,addr:o.addr,ll:[o.lat,o.lng],slPerSession:o.sl,intro:o.intro,
+    market:{min:o.market[0],median:o.market[1],max:o.market[2]},tiers:mkTiers(o.factor,o.intro),
+    competitors:{direct:D,adjacent:A},
+    trendChart:{label:"Local direct median · per session (50-min)",series,now:"$"+e,delta:"+"+dpct+"%",dir:"up"},
+    trend:[
+      {t:"Local direct median · per session",s:"50-min equivalent",series,delta:"+"+dpct+"%",dir:"up"},
+      {t:o.d[0].name+" · single session",s:"50-min",series:r2,delta:"+"+r2pct+"%",dir:"up"},
+      {t:"Your position vs local median",s:"per-session percentile",series:(overMkt?[46,52,59,66]:[55,49,43,37]),delta:(overMkt?"+20 pts":"−18 pts"),dir:(overMkt?"up":"down")},
+    ],
+    baseline:"Tracking began Mar 2026. Deltas compare Jun 2026 vs the Mar 2026 baseline snapshot."};
+}
+const DATA=[
+  S({id:"pasadena",city:"Pasadena",zip:"91101",addr:"E Colorado Blvd, Pasadena, CA",lat:34.1478,lng:-118.1445,sl:79,market:[69,88,112],factor:0.94,intro:49,
+    d:[C("Flexworks Studio",.011,-.006,79),C("Bodyglide Stretch",-.035,-.033,95),C("Mobility Lab",.076,.022,112)],a:[C("Wellness Massage Group",.010,.016,79),C("Revive Spa & Stretch",-.028,.034,null,"login")]}),
+  S({id:"sandiego",city:"San Diego",zip:"92103",addr:"University Ave, Hillcrest, San Diego, CA",lat:32.7480,lng:-117.1611,sl:95,market:[72,84,99],factor:1.06,intro:59,
+    d:[C("Coastal Stretch",.007,-.009,72),C("Range Mobility",-.018,.021,84),C("Pacific Flex Studio",.032,-.029,99)],a:[C("Harbor Wellness Spa",.012,-.019,null,"phone"),C("Calm Body Massage",-.028,.011,69)]}),
+  S({id:"sf",city:"San Francisco",zip:"94123",addr:"Chestnut St, Marina, San Francisco, CA",lat:37.8003,lng:-122.4368,sl:99,market:[88,104,128],factor:1.10,intro:69,
+    d:[C("Marina Mobility",.003,-.006,108),C("Bay Stretch Lab Co.",-.012,.017,88),C("Vertical Flex",-.025,.007,null,"none"),C("Presidio Stretch",-.007,-.023,128)],a:[C("Nob Hill Wellness",.009,.023,null,"phone"),C("Union Massage Group",-.011,.029,95)]}),
+  S({id:"irvine",city:"Irvine",zip:"92618",addr:"Alton Pkwy, Irvine, CA",lat:33.6846,lng:-117.7926,sl:92,market:[74,90,108],factor:1.03,intro:55,
+    d:[C("Spectrum Stretch",.014,.009,88),C("OC Mobility",-.021,-.016,108)],a:[C("Serene Massage Co.",.018,-.022,null,"phone")]}),
+  S({id:"santamonica",city:"Santa Monica",zip:"90401",addr:"Wilshire Blvd, Santa Monica, CA",lat:34.0195,lng:-118.4912,sl:110,market:[96,118,142],factor:1.08,intro:65,
+    d:[C("Ocean Ave Stretch",.006,.011,128),C("Westside Mobility",-.017,-.014,118),C("Pier Flex Studio",.022,.006,null,"login")],a:[C("Bay Wellness Spa",-.013,.019,109)]}),
+  S({id:"sanjose",city:"San Jose",zip:"95128",addr:"Stevens Creek Blvd, San Jose, CA",lat:37.3230,lng:-121.9430,sl:98,market:[80,95,116],factor:1.04,intro:59,
+    d:[C("Valley Stretch",.012,-.008,92),C("Silicon Mobility",-.019,.022,116)],a:[C("Tranquil Massage",.015,.014,null,"phone")]}),
+  S({id:"sacramento",city:"Sacramento",zip:"95816",addr:"J St, Midtown, Sacramento, CA",lat:38.5723,lng:-121.4710,sl:85,market:[68,82,101],factor:0.96,intro:49,
+    d:[C("Midtown Stretch",.009,.012,78),C("Capital Mobility",-.016,-.019,101)],a:[C("River Wellness Spa",.014,-.011,72)]}),
+  S({id:"longbeach",city:"Long Beach",zip:"90802",addr:"Pine Ave, Long Beach, CA",lat:33.7701,lng:-118.1937,sl:84,market:[74,92,114],factor:0.92,intro:49,
+    d:[C("Shoreline Stretch",.011,.007,82),C("Harbor Mobility",-.022,-.013,114),C("Pine Flex Studio",.017,-.021,null,"phone")],a:[C("Coast Massage Group",-.014,.018,79)]}),
+  S({id:"walnutcreek",city:"Walnut Creek",zip:"94596",addr:"N Main St, Walnut Creek, CA",lat:37.9101,lng:-122.0652,sl:96,market:[82,99,120],factor:1.02,intro:55,
+    d:[C("Diablo Stretch",.013,-.009,99),C("East Bay Mobility",-.018,.016,120)],a:[C("Olive Wellness",.012,.021,null,"login")]}),
+  S({id:"encinitas",city:"Encinitas",zip:"92024",addr:"S Coast Hwy 101, Encinitas, CA",lat:33.0370,lng:-117.2920,sl:101,market:[80,97,121],factor:1.05,intro:62,
+    d:[C("Coast Hwy Stretch",.008,.010,104),C("North County Mobility",-.020,-.015,121)],a:[C("Lotus Massage Studio",.016,-.018,95)]}),
+];
+
+let activeTab="overview", current=DATA[0].id, mapScope="studio", compType="direct";
+let ovFilter="all", ovSort="variance", simRows=null, actFilter="all", mapRadius=15, mapType="direct";
+const ACTIVITY=[
+  {type:"up",cat:"price",studio:"San Diego",text:"<b>Range Mobility</b> raised single-session pricing",sub:"Direct competitor · 1.2 mi from your studio",delta:"$84 → $89",when:"Jun 18"},
+  {type:"new",cat:"new",studio:"Irvine",text:"New direct competitor discovered: <b>Spectrum Stretch</b>",sub:"Found via Places search · price scraped on first pass",delta:"+1 direct",when:"Jun 14"},
+  {type:"cross",cat:"position",studio:"Santa Monica",text:"Crossed from <b>at-market</b> to <b>above-market</b>",sub:"Local median softened while your listed price held",delta:"↑ position",when:"Jun 12"},
+  {type:"down",cat:"price",studio:"Sacramento",text:"<b>Capital Mobility</b> cut its 8-pack monthly rate",sub:"Direct competitor · widens your premium gap",delta:"$109 → $101",when:"Jun 9"},
+  {type:"flag",cat:"flag",studio:"Walnut Creek",text:"<b>Olive Wellness</b> now requires login to view pricing",sub:"Flagged needs-login · last good price carried forward",delta:"price flagged",when:"Jun 7"},
+  {type:"up",cat:"price",studio:"San Francisco",text:"<b>Marina Mobility</b> raised single-session pricing",sub:"Direct competitor · now the priciest in your radius",delta:"$99 → $108",when:"Jun 5"},
+  {type:"new",cat:"new",studio:"Long Beach",text:"New direct competitor discovered: <b>Pine Flex Studio</b>",sub:"Found via Places search · pricing needs a phone call",delta:"+1 direct",when:"Jun 3"},
+  {type:"cross",cat:"position",studio:"Pasadena",text:"Held <b>below-market</b> for a third straight month",sub:"Consistent pricing headroom vs local median",delta:"= position",when:"Jun 1"},
+  {type:"flag",cat:"flag",studio:"San Francisco",text:"<b>Vertical Flex</b> still returns no published price",sub:"No pricing found across 3 runs · excluded from median",delta:"no price",when:"Jun 1"},
+];
+const ACT_CATS=[["all","All"],["price","Price moves"],["new","New competitors"],["position","Position changes"],["flag","Data flags"]];
+const get=id=>DATA.find(d=>d.id===id);
+const money=v=>v==null?"—":"$"+v;
+function miles(a,b){const R=3958.8,toR=x=>x*Math.PI/180;const dLat=toR(b[0]-a[0]),dLng=toR(b[1]-a[1]);const s=Math.sin(dLat/2)**2+Math.cos(toR(a[0]))*Math.cos(toR(b[0]))*Math.sin(dLng/2)**2;return R*2*Math.asin(Math.sqrt(s));}
+function positionPct(d){const{min,max}=d.market;return Math.max(0,Math.min(1,(d.slPerSession-min)/(max-min)));}
+function verdict(d){if(d.slPerSession<d.market.median-1)return{cls:"under",word:"Below local market"};if(d.slPerSession>d.market.median+1)return{cls:"over",word:"Above local market"};return{cls:"match",word:"At local market"};}
+function statusLabel(s){return {phone:"Needs phone call",login:"Needs login",none:"No pricing found"}[s]||"Unavailable";}
+const STATUS_COLOR={scraped:"#0E9F6E",phone:"#D97706",login:"#D97706",none:"#8A93A6"};
+function visibleComps(d){let arr;if(mapType==='both')arr=d.competitors.direct.map(c=>Object.assign({_t:'direct'},c)).concat(d.competitors.adjacent.map(c=>Object.assign({_t:'adjacent'},c)));else arr=d.competitors[mapType].map(c=>Object.assign({_t:mapType},c));return arr.filter(c=>miles(d.ll,c.ll)<=mapRadius);}
+function priceColor(d,c){if(c.price==null)return "#8A93A6";if(c.price<d.slPerSession)return "#D97706";if(c.price>d.slPerSession)return "#0E9F6E";return "#8A93A6";}
+function priceVerdict(d,c){if(c.price==null)return "";return c.price<d.slPerSession?"Undercuts you":c.price>d.slPerSession?"You\u2019re cheaper":"Matches you";}
+const IC_PIN='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>';
+
+/* studio selector (search + dropdown) */
+function renderCombo(filter){
+  const f=(filter||"").trim().toLowerCase();
+  const matches=DATA.filter(d=>{const short=d.name.replace('StretchLab — ','').toLowerCase();return !f||short.includes(f)||d.zip.includes(f)||d.addr.toLowerCase().includes(f);});
+  const drop=document.getElementById('comboDrop');
+  drop.innerHTML = matches.length ? matches.map(d=>{const v=verdict(d),col=v.cls==='under'?'var(--teal)':v.cls==='over'?'var(--amber)':'var(--ink-faint)';return `<div class="combo-item" onmousedown="pickStudio('${d.id}')"><div class="ci-name">${d.name.replace('StretchLab — ','')}</div><div class="ci-meta">${d.zip} · <span style="color:${col}">${v.word}</span></div></div>`;}).join("") : `<div class="combo-empty">No studios match that search.</div>`;
+}
+function openCombo(){renderCombo(document.getElementById('studioSearch').value);document.getElementById('comboDrop').classList.add('open');}
+function closeCombo(){document.getElementById('comboDrop').classList.remove('open');}
+function toggleCombo(e){e.preventDefault();e.stopPropagation();const drop=document.getElementById('comboDrop');if(drop.classList.contains('open')){closeCombo();}else{document.getElementById('studioSearch').value="";renderCombo("");drop.classList.add('open');}}
+function pickStudio(id){selectStudio(id);setComboValue(id);closeCombo();}
+function setComboValue(id){const inp=document.getElementById('studioSearch');if(inp)inp.value=get(id).name.replace('StretchLab — ','');}
+
+/* map */
+const TILE_URL='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+const TILE_OPT={maxZoom:19,attribution:'© OpenStreetMap'};
+let map=null, layer=null, snapMap=null;
+function dot(color,size,hollow){return L.divIcon({className:'',html:`<div class="pin-ico" style="width:${size}px;height:${size}px;background:${hollow?'#fff':color};${hollow?'border-color:'+color+';border-width:3px;':''}"></div>`,iconSize:[size,size],iconAnchor:[size/2,size/2]});}
+function initMap(){try{map=L.map('map',{scrollWheelZoom:true}).setView(get(current).ll,12);L.tileLayer(TILE_URL,TILE_OPT).addTo(map);layer=L.layerGroup().addTo(map);}catch(e){mapFallback();}}
+function buildSnapMap(){
+  if(activeTab!=='snapshot')return;
+  const el=document.getElementById('snapMap'); if(!el)return;
+  if(typeof L==='undefined'){el.innerHTML='<div class="snapmap-empty">Map needs internet to load its tiles — open the downloaded file in a browser to see it.</div>';return;}
+  try{
+    if(snapMap){snapMap.remove();snapMap=null;}
+    const d=get(current);
+    snapMap=L.map('snapMap',{scrollWheelZoom:false,attributionControl:false}).setView(d.ll,12);
+    L.tileLayer(TILE_URL,TILE_OPT).addTo(snapMap);
+    L.circle(d.ll,{radius:24140,color:'#5B4FA8',weight:1.4,dashArray:'5 5',fill:true,fillColor:'#5B4FA8',fillOpacity:.05}).addTo(snapMap);
+    L.marker(d.ll,{icon:dot('#5B4FA8',18)}).addTo(snapMap).bindPopup('<div class="pop-name">'+d.name+'</div>');
+    const pts=[d.ll];
+    d.competitors[compType].forEach(c=>{const col=STATUS_COLOR[c.status];L.marker(c.ll,{icon:dot(col,12)}).addTo(snapMap).bindPopup('<div class="pop-name">'+c.name+'</div><div class="pop-row">'+(c.price==null?statusLabel(c.status):'$'+c.price+' · '+miles(d.ll,c.ll).toFixed(1)+' mi')+'</div>');L.polyline([d.ll,c.ll],{color:col,weight:1.2,opacity:.45,dashArray:'2 5'}).addTo(snapMap);pts.push(c.ll);});
+    snapMap.fitBounds(pts,{padding:[26,26],maxZoom:13});
+    setTimeout(()=>{if(snapMap)snapMap.invalidateSize();},60);
+  }catch(e){}
+}
+function drawAll(){if(!map||!layer)return;try{layer.clearLayers();const pts=[];DATA.forEach(d=>{const v=verdict(d),col=v.cls==="over"?"#D97706":v.cls==="under"?"#0E9F6E":"#5B4FA8";const m=L.marker(d.ll,{icon:dot(col,15)}).addTo(layer);m.bindTooltip(d.name.replace("StretchLab — ",""),{direction:'top'});m.bindPopup(`<div class="pop-name">${d.name}</div><div class="pop-row">${v.word} · your <span class="num">$${d.slPerSession}</span> vs median <span class="num">$${d.market.median}</span></div><div class="pop-row" style="color:var(--violet)">Click pin to open →</div>`);m.on('click',()=>selectFromMap(d.id));pts.push(d.ll);});if(pts.length)map.fitBounds(pts,{padding:[34,34]});}catch(e){}}
+function drawStudio(fly){if(!map||!layer)return;try{const d=get(current);layer.clearLayers();L.circle(d.ll,{radius:mapRadius*1609.34,color:'#5B4FA8',weight:1.5,dashArray:'5 5',fill:true,fillColor:'#5B4FA8',fillOpacity:.05}).addTo(layer);L.marker(d.ll,{icon:dot('#5B4FA8',20)}).addTo(layer).bindTooltip(`${d.name.replace('StretchLab — ','')} · $${d.slPerSession}`,{direction:'top'}).bindPopup(`<div class="pop-name">${d.name}</div><div class="pop-row">Your effective <span class="num">$${d.slPerSession}</span>/session</div>`);const pts=[d.ll];visibleComps(d).forEach(c=>{const dist=miles(d.ll,c.ll).toFixed(1),adj=c._t==='adjacent',col=adj?'#94A3B8':priceColor(d,c),pv=adj?'':priceVerdict(d,c);const tip=`${c.name}${adj?' · adjacent':''}${c.price==null?(adj?'':' · '+statusLabel(c.status)):' · $'+c.price}`;L.marker(c.ll,{icon:dot(col,15,adj)}).addTo(layer).bindTooltip(tip,{direction:'top'}).bindPopup(`<div class="pop-name">${c.name}</div><div class="pop-row">${adj?'Adjacent · context · ':''}${dist} mi away</div><div class="pop-row">${c.price==null?'<i>'+statusLabel(c.status)+'</i>':'Headline <span class="num">$'+c.price+'</span> · <span class="num">$'+c.perMin.toFixed(2)+'</span>/min'}</div>${pv?'<div class="pop-row" style="color:'+col+';font-weight:600">'+pv+'</div>':''}`);L.polyline([d.ll,c.ll],{color:col,weight:1.5,opacity:adj?.32:.5,dashArray:'2 5'}).addTo(layer);pts.push(c.ll);});if(fly){try{map.flyToBounds(pts,{padding:[55,55],maxZoom:14,duration:.55});}catch(e){map.setView(d.ll,13);}}}catch(e){}}
+function drawMapNow(){ if(mapScope==='all') drawAll(); else drawStudio(true); }
+function mapFallback(){const m=document.getElementById('map');if(m)m.innerHTML='<div class="map-empty">The interactive map needs internet to load its tiles.<br>If you see this in the in-app preview, download the file and open it in a browser — the full map renders there.</div>';}
+function bootMap(){if(typeof L!=='undefined'){initMap();return;}let n=0;const iv=setInterval(()=>{if(typeof L!=='undefined'){clearInterval(iv);initMap();}else if(++n>60){clearInterval(iv);mapFallback();}},100);}
+function updateMapBar(){
+  const d=get(current);
+  const scopeTog=`<div class="mb-toggle"><button class="${mapScope==='studio'?'active':''}" onclick="setMapScope('studio')">This studio</button><button class="${mapScope==='all'?'active':''}" onclick="setMapScope('all')">All California</button></div>`;
+  let left, right;
+  if(mapScope==='all'){
+    left=`<span class="mb-dot"></span><b>All California studios</b>`;
+    right=scopeTog;
+  } else {
+    const n=visibleComps(d).length;
+    left=`<span class="mb-dot"></span><b>${d.name.replace('StretchLab — ','')}</b> · ${mapRadius}-mi radius · ${n} ${mapType==='both'?'nearby':mapType}`;
+    const radSel=`<label class="mb-rad">Radius <select onchange="setMapRadius(this.value)">${[5,10,15,25,50].map(r=>`<option value="${r}" ${r===mapRadius?'selected':''}>${r} mi</option>`).join('')}</select></label>`;
+    const typeTog=`<div class="mb-toggle"><button class="${mapType==='direct'?'active':''}" onclick="setMapType('direct')">Direct</button><button class="${mapType==='adjacent'?'active':''}" onclick="setMapType('adjacent')">Adjacent</button><button class="${mapType==='both'?'active':''}" onclick="setMapType('both')">Both</button></div>`;
+    right=radSel+typeTog+scopeTog;
+  }
+  document.getElementById('mapbar').innerHTML=`<div class="mb-left">${left}</div><div class="mb-controls">${right}</div>`;
+}
+function setMapScope(s){mapScope=s;updateMapBar();if(map){map.invalidateSize();drawMapNow();}}
+function setMapRadius(v){mapRadius=+v;updateMapBar();if(map){map.invalidateSize();drawStudio(true);}}
+function setMapType(t){mapType=t;updateMapBar();if(map){map.invalidateSize();drawStudio(true);}}
+
+/* charts */
+function spark(series,dir){const w=80,h=28,pad=3,min=Math.min(...series),max=Math.max(...series),rng=(max-min)||1;const pts=series.map((v,i)=>[pad+i*(w-2*pad)/(series.length-1),h-pad-((v-min)/rng)*(h-2*pad)]);const dp=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");const col=dir==="up"?"var(--amber)":"var(--teal)",last=pts[pts.length-1];return `<svg width="${w}" height="${h}"><path d="${dp}" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="2.4" fill="${col}"/></svg>`;}
+function bigChart(series,dir){const w=620,h=200,padL=44,padR=16,padT=16,padB=30;const min=Math.min(...series),max=Math.max(...series),sp=(max-min)||1,lo=min-sp*0.35,hi=max+sp*0.35,rng=hi-lo;const X=i=>padL+i*(w-padL-padR)/(series.length-1),Y=v=>padT+(1-(v-lo)/rng)*(h-padT-padB);const pts=series.map((v,i)=>[X(i),Y(v)]);const line=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");const area=`M${X(0)} ${Y(lo)} `+pts.map(p=>"L"+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ")+` L${X(series.length-1)} ${Y(lo)} Z`;const col=dir==="up"?"#D97706":"#0E9F6E",fill=dir==="up"?"rgba(217,118,6,.10)":"rgba(14,159,110,.10)";let grid="";for(let g=0;g<=2;g++){const val=lo+rng*g/2,y=Y(val);grid+=`<line x1="${padL}" y1="${y.toFixed(1)}" x2="${w-padR}" y2="${y.toFixed(1)}" stroke="#E2E7F0"/><text x="${padL-8}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="10" fill="#8A93A6" font-family="IBM Plex Mono">$${Math.round(val)}</text>`;}const xlab=series.map((v,i)=>`<text x="${X(i).toFixed(1)}" y="${h-10}" text-anchor="middle" font-size="10.5" fill="#8A93A6">${MONTHS[i]}</text>`).join("");const dots=pts.map((p,i)=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${i===pts.length-1?4.5:3}" fill="${i===pts.length-1?col:'#fff'}" stroke="${col}" stroke-width="2"/>`).join("");const lastVal=series[series.length-1];const lbl=`<text x="${X(series.length-1).toFixed(1)}" y="${(Y(lastVal)-12).toFixed(1)}" text-anchor="end" font-size="12" font-weight="600" fill="${col}" font-family="IBM Plex Mono">$${lastVal}</text>`;return `<svg class="bigchart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">${grid}<path d="${area}" fill="${fill}"/><path d="${line}" fill="none" stroke="${col}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>${dots}${lbl}${xlab}</svg>`;}
+
+/* panels */
+function sheadHTML(d){const v=verdict(d);return `<div class="shead"><div><div class="crumb">California · ${d.zip} · 15-mi radius</div><h2>${d.name}</h2><div class="addr">${d.addr}</div></div><div class="countpill"><b>${d.competitors.direct.length}</b> direct · <b>${d.competitors.adjacent.length}</b> adjacent</div></div>`;}
+
+function renderOverviewPanel(){
+  let above=0,below=0,at=0,flagged=0,varSum=0;
+  DATA.forEach(d=>{const v=verdict(d);if(v.cls==="over")above++;else if(v.cls==="under")below++;else at++;varSum+=(d.slPerSession-d.market.median)/d.market.median;[...d.competitors.direct,...d.competitors.adjacent].forEach(c=>{if(c.price==null)flagged++;});});
+  const avgVar=varSum/DATA.length*100;
+  const kpi=(val,label,tone)=>{const c=tone==="teal"?"var(--teal)":tone==="amber"?"var(--amber)":"var(--ink)";return `<div class="kpi"><div class="kpi-v" style="color:${c}">${val}</div><div class="kpi-l">${label}</div></div>`;};
+  const rowData=DATA.map(d=>{const v=verdict(d),variance=(d.slPerSession-d.market.median)/d.market.median*100,fl=[...d.competitors.direct,...d.competitors.adjacent].filter(c=>c.price==null).length;return {d,v,variance,fl};});
+  let shown=rowData.slice();
+  if(ovFilter==="under")shown=shown.filter(r=>r.v.cls==="under");
+  else if(ovFilter==="over")shown=shown.filter(r=>r.v.cls==="over");
+  else if(ovFilter==="flagged")shown=shown.filter(r=>r.fl>0);
+  if(ovSort==="variance")shown.sort((a,b)=>b.variance-a.variance);
+  else if(ovSort==="variance_asc")shown.sort((a,b)=>a.variance-b.variance);
+  else if(ovSort==="name")shown.sort((a,b)=>a.d.name.localeCompare(b.d.name));
+  const rows=shown.map(({d,v,variance,fl})=>{const vtxt=(variance>=0?"+":"")+variance.toFixed(0)+"%",col=v.cls==="over"?"var(--amber)":v.cls==="under"?"var(--teal)":"var(--ink-faint)";return `<tr class="ovrow" onclick="selectStudio('${d.id}')"><td><div class="cname">${d.name.replace('StretchLab — ','')}</div><div class="ctag">${d.zip}</div></td><td class="num">$${d.slPerSession}</td><td class="num">$${d.market.median}</td><td class="num" style="color:${col};font-weight:600">${vtxt}</td><td><span style="color:${col};font-weight:600;font-size:12px">${v.word}</span></td><td class="num">${d.competitors.direct.length}</td><td class="num">${fl?'<span style="color:var(--amber)">'+fl+'</span>':'0'}</td></tr>`;}).join("");
+  const fc=(k,l)=>`<button class="fchip ${ovFilter===k?'active':''}" onclick="setOvFilter('${k}')">${l}</button>`;
+  document.getElementById('panel-overview').innerHTML=`
+    <div class="health"><span class="hlabel">System health</span>
+      <span class="schip ok"><span class="d"></span>Last run <b>Jun 2026 · healthy</b> · next Jul 1</span>
+      <span class="schip warn"><span class="d"></span>${flagged} sources need manual pricing</span>
+      <span class="schip example"><span class="tag">Example alert</span>a scraper returning 0 (was &gt;0) flags as silent breakage</span>
+    </div>
+    <div class="ov-title">California portfolio</div>
+    <div class="ov-sub">${DATA.length} studios tracked · click any studio to open its Map, Snapshot, and Trends</div>
+    <div class="kpis">${kpi(DATA.length,"Studios tracked","")}${kpi(below,"Below local market","teal")}${kpi(above,"Above local market","amber")}${kpi(at,"At market","")}${kpi(flagged,"Sources need manual pricing","amber")}${kpi((avgVar>=0?"+":"")+avgVar.toFixed(0)+"%","Avg variance vs median",avgVar<0?"teal":"amber")}</div>
+    <div class="card"><h3>All California studios</h3>
+      <div class="ov-controls">
+        <div class="filterchips">${fc("all","All "+rowData.length)}${fc("under","Below market")}${fc("over","Above market")}${fc("flagged","Has flags")}</div>
+        <div class="sortsel">Sort
+          <select onchange="setOvSort(this.value)">
+            <option value="variance" ${ovSort==="variance"?"selected":""}>Variance · high→low</option>
+            <option value="variance_asc" ${ovSort==="variance_asc"?"selected":""}>Variance · low→high</option>
+            <option value="name" ${ovSort==="name"?"selected":""}>Studio name</option>
+          </select>
+        </div>
+      </div>
+      <table class="ctable"><tr><th>Studio</th><th>Your $/sess</th><th>Local median</th><th>Variance</th><th>Position</th><th>Direct</th><th>Flagged</th></tr>${rows||'<tr><td colspan="7" style="text-align:center;color:var(--ink-faint);padding:22px">No studios match this filter.</td></tr>'}</table>
+      <div class="footnote">Click a row to open the studio. “Flagged” = competitor sites still needing a price. Variance = your per-session vs local median.</div>
+    </div>`;
+}
+function setOvFilter(k){ovFilter=k;renderOverviewPanel();}
+function setOvSort(k){ovSort=k;renderOverviewPanel();}
+
+function renderSnapshotPanel(){
+  const d=get(current),v=verdict(d),pct=positionPct(d)*100,medPct=((d.market.median-d.market.min)/(d.market.max-d.market.min))*100,flagPct=Math.max(13,Math.min(87,pct));
+  const tierRows=d.tiers.map(t=>{const diff=t.listed-t.retail;let cls="match",txt="at retail";if(diff<0){cls="under";txt=money(Math.abs(diff))+" under";}else if(diff>0){cls="over";txt="+"+money(diff)+" over";}return `<tr><td>${t.name}<span class="tier-len">${t.len}</span></td><td class="num">${money(t.retail)}</td><td class="num">${money(t.listed)}</td><td><span class="delta ${cls}">${txt}</span></td></tr>`;}).join("");
+  const compRows=d.competitors[compType].map(c=>{const dist=miles(d.ll,c.ll).toFixed(1),val=c.price==null?`<span class="na">${statusLabel(c.status)}</span>`:`<span class="num">${money(c.price)}</span>`,ps=c.price==null?'<span class="na">—</span>':'$'+c.price,pm=c.perMin==null?'<span class="na">—</span>':'$'+c.perMin.toFixed(2),ct={scraped:"Scraped",phone:"Phone",login:"Login",none:"Not found"};return `<tr><td><div class="cname">${c.name}</div><div class="ctag">${compType}</div></td><td class="num">${dist} mi</td><td>${val}</td><td class="num">${ps}</td><td class="num">${pm}</td><td><span class="chip ${c.status}"><span class="d"></span>${ct[c.status]}</span></td></tr>`;}).join("");
+  document.getElementById('panel-snapshot').innerHTML=sheadHTML(d)+`
+    <div class="grid2">
+      <div class="card"><h3>Your pricing · retail vs this studio's listed</h3><table class="ptable"><tr><th>Tier</th><th>Retail</th><th>Listed</th><th>Variance</th></tr>${tierRows}</table></div>
+      <div class="card poscard"><h3>Market position · per session (50-min)</h3><div class="posbody">
+        <div class="pos-head"><span class="pos-verdict ${v.cls}">${v.word}</span><span class="pos-sub">your ~$${d.slPerSession}<br>vs median $${d.market.median}</span></div>
+        <div class="track2"><div class="bar"></div>
+          ${barDots(d)}
+          <div class="slflag" style="left:${flagPct}%"><span class="pill"><span class="nm">StretchLab</span><span class="val">$${d.slPerSession}</span></span><span class="stem"></span></div>
+          <div class="medmark" style="left:${medPct}%"></div><div class="medlab" style="left:${medPct}%">median $${d.market.median}</div>
+          <div class="endlab" style="left:0">low<span class="num">$${d.market.min}</span></div><div class="endlab" style="right:0;text-align:right">high<span class="num">$${d.market.max}</span></div>
+        </div>
+        <div class="cdot-legend"><span class="cd"></span>each dot = a nearby direct competitor's per-session price</div></div></div>
+    </div>
+    <div class="card snapmap-card"><h3>Local map · this studio &amp; nearby ${compType}</h3><div id="snapMap" class="snapmap"></div></div>
+    <div class="card"><div class="comp-head"><h3 style="margin:0">Nearby competitors</h3>
+      <div class="typetoggle"><button class="${compType==='direct'?'active':''}" onclick="setType('direct')">Direct</button><button class="${compType==='adjacent'?'active':''}" onclick="setType('adjacent')">Adjacent</button></div></div>
+      <table class="ctable"><tr><th>Studio</th><th>Distance</th><th>Headline</th><th>/ session</th><th>/ min</th><th>Source</th></tr>${compRows}</table>
+      <div class="footnote">Distances are straight-line. Per-minute normalizes across session lengths. Adjacent (massage-led) competitors are context, not head-to-head. Unpriced studios carry a status flag — never a fabricated number.</div></div>`;
+  setTimeout(buildSnapMap,0);
+}
+
+function renderTrendsPanel(){
+  const d=get(current),tc=d.trendChart;
+  const trendRows=d.trend.map(tr=>`<div class="trend-row"><div class="lbl"><div class="t">${tr.t}</div><div class="s">${tr.s}</div></div>${spark(tr.series,tr.dir)}<div class="trend-delta ${tr.dir}">${tr.delta}</div></div>`).join("");
+  document.getElementById('panel-trends').innerHTML=sheadHTML(d)+`
+    <div class="card"><div class="comp-head"><h3 style="margin:0">${tc.label}</h3></div>
+      <div class="chart-cap"><div class="now">${tc.now}<span class="${tc.dir}">${tc.delta} since Mar</span></div></div>${bigChart(tc.series,tc.dir)}</div>
+    <div class="card"><h3>Movement vs baseline · key series</h3>${trendRows}
+      <div class="baseline-note">${d.baseline}</div>
+      <div class="footnote">Trend views need ≥2–3 monthly snapshots. History is captured from the first run; deltas are illustrative until real snapshots accumulate.</div></div>`;
+}
+
+/* competitor price dots on a position bar */
+function pos(v,mn,mx){return Math.max(0,Math.min(100,(v-mn)/((mx-mn)||1)*100));}
+function barDots(d){const{min,max}=d.market;return d.competitors.direct.filter(c=>c.price!=null).map(c=>`<div class="cdot" style="left:${pos(c.price,min,max)}%;background:var(--teal)" title="${c.name.replace(/"/g,'')} · $${c.price}"></div>`).join("");}
+function barDotsScaled(d,mn,mx){return d.competitors.direct.filter(c=>c.price!=null).map(c=>`<div class="cdot" style="left:${pos(c.price,mn,mx)}%;background:var(--teal)" title="${c.name.replace(/"/g,'')} · $${c.price}"></div>`).join("");}
+
+/* simulator — membership tiers on an effective per-session basis */
+const TIERS={
+  single:{label:"Single session",sessions:1,mult:1.00},
+  pack4 :{label:"4 / month",      sessions:4,mult:0.82},
+  pack8 :{label:"8 / month",      sessions:8,mult:0.72},
+  unlim :{label:"Unlimited",      sessions:12,mult:0.60,assumed:true},
+  intro :{label:"Intro offer",    sessions:1,mult:0.58},
+};
+const TIER_ORDER=["single","pack4","pack8","unlim","intro"];
+function jit(name){let h=0;for(let i=0;i<name.length;i++)h=(h*31+name.charCodeAt(i))%1000;return 0.94+(h/1000)*0.12;} // 0.94–1.06 deterministic
+function slTierPrice(d,key){switch(key){
+  case "single":return d.slPerSession;
+  case "pack4" :return Math.round(d.slPerSession*4*0.86);
+  case "pack8" :return Math.round(d.slPerSession*8*0.78);
+  case "unlim" :return Math.round(d.slPerSession*12*0.62);
+  case "intro" :return d.intro; default:return d.slPerSession;}}
+function slTierEff(d,key,price){return (price==null?slTierPrice(d,key):price)/TIERS[key].sessions;}
+function compEff(d,key){return d.competitors.direct.filter(c=>c.price!=null).map(c=>({name:c.name,eff:+(c.price*TIERS[key].mult*jit(c.name)).toFixed(2)}));}
+function tierMarket(d,key){const xs=compEff(d,key).map(c=>c.eff).sort((a,b)=>a-b);if(!xs.length)return{min:0,median:0,max:0,n:0};const md=xs.length%2?xs[(xs.length-1)/2]:(xs[xs.length/2-1]+xs[xs.length/2])/2;return{min:xs[0],median:+md.toFixed(2),max:xs[xs.length-1],n:xs.length};}
+function tierDomain(d,key,eff){const mk=tierMarket(d,key),lo=Math.min(mk.min||eff,eff),hi=Math.max(mk.max||eff,eff),pad=Math.max(3,(hi-lo)*0.18);return{mn:Math.max(0,Math.floor(lo-pad)),mx:Math.ceil(hi+pad)};}
+
+function simRowReadout(d,row){
+  const t=TIERS[row.key],eff=slTierEff(d,row.key,row.price),mk=tierMarket(d,row.key);
+  const varPct=mk.median?((eff-mk.median)/mk.median*100):0;
+  const verd=!mk.n?{w:"No priced competitors",c:"match"}:eff<mk.median-0.5?{w:"Below market",c:"under"}:eff>mk.median+0.5?{w:"Above market",c:"over"}:{w:"At market",c:"match"};
+  const cheaper=compEff(d,row.key).filter(c=>eff<c.eff).length;
+  const priceLbl=t.sessions>1?`$${row.price}/mo`:`$${row.price}`;
+  return `
+    <div class="sim-readline"><span class="sim-rk">${priceLbl} · $${eff.toFixed(0)} effective / session</span><span class="sim-verdict ${verd.c}">${verd.w}</span></div>
+    <div class="sim-readline"><span class="sim-rk">vs local median ($${mk.median?mk.median.toFixed(0):'—'})</span><span class="sim-rv" style="color:${varPct>0?'var(--amber)':varPct<0?'var(--teal)':'var(--ink-soft)'}">${mk.n?(varPct>=0?'+':'')+varPct.toFixed(0)+'%':'—'}</span></div>
+    <div class="sim-readline"><span class="sim-rk">Cheaper than</span><span class="sim-rv">${cheaper} of ${mk.n} priced</span></div>`;
+}
+function simBarDots(d,key,mn,mx){return compEff(d,key).map(c=>`<div class="cdot" style="left:${pos(c.eff,mn,mx)}%;background:var(--teal)" title="${c.name.replace(/"/g,'')} · $${c.eff.toFixed(0)}/sess effective"></div>`).join("");}
+function simRowHTML(d,row,i){
+  const t=TIERS[row.key],eff=slTierEff(d,row.key,row.price),mk=tierMarket(d,row.key),{mn,mx}=tierDomain(d,row.key,eff);
+  const lo=Math.max(1,Math.round(slTierPrice(d,row.key)*0.5)),hi=Math.round(slTierPrice(d,row.key)*1.6);
+  const opts=TIER_ORDER.map(k=>`<option value="${k}" ${k===row.key?'selected':''}>${TIERS[k].label}</option>`).join("");
+  return `<div class="sim-row" data-i="${i}">
+    <div class="sim-rowhead">
+      <select class="sim-tier" onchange="setSimTier(${i},this.value)">${opts}</select>
+      ${t.assumed?'<span class="sim-assume">assumes ~12 visits/mo</span>':''}
+      ${simRows.length>1?`<button class="sim-x" onclick="removeSimRow(${i})" aria-label="Remove">✕</button>`:''}
+    </div>
+    <div class="simtrack" id="simTrack${i}" data-min="${mn}" data-max="${mx}" data-key="${row.key}">
+      <div class="bar"></div>
+      ${simBarDots(d,row.key,mn,mx)}
+      <div class="medmark" style="left:${pos(mk.median,mn,mx)}%"></div><div class="medlab" style="left:${pos(mk.median,mn,mx)}%">median $${mk.median?mk.median.toFixed(0):'—'}/sess</div>
+      <div class="sim-whatif" id="simWhatif${i}" style="left:${pos(eff,mn,mx)}%"><span class="pill"><span class="nm">Effective</span><span class="val">$${eff.toFixed(0)}</span></span><span class="stem"></span></div>
+    </div>
+    <input type="range" class="sim-slider" id="simSlider${i}" min="${lo}" max="${hi}" step="1" value="${row.price}" oninput="onSimSlide(${i},this.value)">
+    <div class="sim-read" id="simRead${i}">${simRowReadout(d,row)}</div>
+  </div>`;
+}
+function renderSimPanel(){
+  const d=get(current);
+  if(!simRows||!simRows.length)simRows=[{key:"pack8",price:slTierPrice(d,"pack8")}];
+  const canAdd=simRows.length<TIER_ORDER.length;
+  document.getElementById('panel-simulator').innerHTML=sheadHTML(d)+`
+    <div class="card"><h3>Pricing what-if · by membership tier</h3>
+      <div class="sim-intro">Pick a membership, drag to test its price. Every plan is compared on <b>effective cost per session</b> (price ÷ sessions), so packs and unlimited line up on one honest axis against nearby direct competitors.</div>
+      <div id="simRows">${simRows.map((r,i)=>simRowHTML(d,r,i)).join("")}</div>
+      ${canAdd?'<button class="sim-add" onclick="addSimRow()">+ Add a tier to compare</button>':'<div class="sim-hint" style="margin-top:6px">All tiers added.</div>'}
+      <div class="sim-hint">Dots are nearby direct competitors\u2019 effective per-session price for the same tier. Directional only \u2014 it doesn\u2019t model demand, conversion, or churn. Unlimited uses an assumed visit frequency.</div>
+    </div>`;
+}
+function onSimSlide(i,val){
+  const d=get(current);simRows[i].price=+val;
+  const t=document.getElementById('simTrack'+i);if(!t)return;
+  const mn=+t.dataset.min,mx=+t.dataset.max,key=t.dataset.key,eff=slTierEff(d,key,+val);
+  const wf=document.getElementById('simWhatif'+i);
+  if(wf){const np=pos(eff,mn,mx);if(np<3||np>97){renderSimPanel();return;}wf.style.left=np+'%';wf.querySelector('.val').textContent='$'+eff.toFixed(0);}
+  const r=document.getElementById('simRead'+i);if(r)r.innerHTML=simRowReadout(d,simRows[i]);
+}
+function setSimTier(i,key){const d=get(current);simRows[i]={key,price:slTierPrice(d,key)};renderSimPanel();}
+function addSimRow(){const d=get(current);const used=simRows.map(r=>r.key);const next=TIER_ORDER.find(k=>!used.includes(k))||"single";simRows.push({key:next,price:slTierPrice(d,next)});renderSimPanel();}
+function removeSimRow(i){simRows.splice(i,1);renderSimPanel();}
+
+/* activity feed */
+function renderActivityPanel(){
+  const ICO={
+    up:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l7-7 7 7M12 5v14"/></svg>',
+    down:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>',
+    new:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>',
+    cross:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7l10 10M17 7L7 17"/></svg>',
+    flag:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4h11l-1.5 4L16 12H5"/></svg>'};
+  const deltaCls={up:'up',down:'down',new:'mut',cross:'mut',flag:'mut'};
+  const items=ACTIVITY.filter(a=>actFilter==='all'||a.cat===actFilter);
+  const chips=ACT_CATS.map(([k,l])=>`<button class="fchip ${actFilter===k?'active':''}" onclick="setActFilter('${k}')">${l}</button>`).join("");
+  const rows=items.map(a=>`<div class="act-item"><div class="act-ico ${a.type}">${ICO[a.type]}</div><div class="act-body"><div class="act-t">${a.text} · <b>${a.studio}</b></div><div class="act-s">${a.sub}</div></div><div><div class="act-delta ${deltaCls[a.type]}">${a.delta}</div><div class="act-when">${a.when}</div></div></div>`).join("");
+  document.getElementById('panel-activity').innerHTML=`
+    <div class="ov-title">What moved this month</div>
+    <div class="ov-sub">Notable changes across the California portfolio since the last monthly snapshot · ${ACTIVITY.length} events</div>
+    <div class="card">
+      <div class="act-controls">${chips}</div>
+      ${rows||'<div style="text-align:center;color:var(--ink-faint);padding:22px">No events in this category.</div>'}
+      <div class="footnote">Sample feed. In the live tool this is generated by diffing each monthly snapshot against the prior one — price changes, newly discovered competitors, studios crossing market position, and sources that broke or moved behind a login.</div>
+    </div>`;
+}
+function setActFilter(k){actFilter=k;renderActivityPanel();}
+
+/* navigation */
+function showTab(t){
+  activeTab=t;
+  document.querySelectorAll('.tabbtn').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id==='panel-'+t));
+  if(t==='overview') renderOverviewPanel();
+  if(t==='snapshot') renderSnapshotPanel();
+  if(t==='trends') renderTrendsPanel();
+  if(t==='simulator'){ simRows=null; renderSimPanel(); }
+  if(t==='activity') renderActivityPanel();
+  if(t==='map'){ updateMapBar(); setTimeout(()=>{ if(map){map.invalidateSize(); drawMapNow();} },80); }
+  updateCtx();
+  document.querySelector('.main').scrollTo({top:0});
+}
+function updateCtx(){const c=document.getElementById('ctxChip'),d=get(current);c.innerHTML=`${IC_PIN} ${d.name.replace('StretchLab — ','')}`;c.style.display=(activeTab==='overview'||activeTab==='activity')?'none':'inline-flex';}
+function selectStudio(id){
+  current=id; setComboValue(id); simRows=null; renderSnapshotPanel(); renderTrendsPanel(); renderSimPanel(); updateMapBar();
+  if(activeTab==='map'){ mapScope='studio'; updateMapBar(); if(map){map.invalidateSize();drawStudio(true);} }
+  if(activeTab==='overview'){ showTab('snapshot'); } else { updateCtx(); }
+}
+function selectFromMap(id){ current=id; mapScope='studio'; setComboValue(id); simRows=null; renderSnapshotPanel(); renderTrendsPanel(); renderSimPanel(); updateMapBar(); updateCtx(); if(map){map.invalidateSize();drawStudio(true);} }
+function setType(t){compType=t;renderSnapshotPanel();if(activeTab==='map'){updateMapBar();drawMapNow();}}
+
+setComboValue(current);
+renderOverviewPanel();
+updateCtx();
+document.addEventListener('click',e=>{const c=document.querySelector('.combo');if(c&&!c.contains(e.target))closeCombo();});
+bootMap();
+</script>
+</body>
+</html>

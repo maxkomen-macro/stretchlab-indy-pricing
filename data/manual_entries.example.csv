@@ -1,0 +1,6 @@
+brand,location,address,method,source_note,offer_name,structure,price,sessions_per_month,session_min,status,is_headline
+iFlex,Noblesville,"11170 E 146th St #110, Noblesville, IN 46060",press,"youarecurrent.com Aug 2024 — CONFIRM current via studio/widget",Membership 2x50,2 x 50-min/mo,158,2,50,unverified_press,yes
+iFlex,Noblesville,"11170 E 146th St #110, Noblesville, IN 46060",press,"youarecurrent.com Aug 2024 — CONFIRM current via studio/widget",Membership 2x25,2 x 25-min/mo,79,2,25,unverified_press,
+iFlex,Noblesville,"11170 E 146th St #110, Noblesville, IN 46060",web_estimate,"sister-location intro price — CONFIRM Noblesville",Intro 50-min,first session,39,,50,estimate_confirm,
+Stretch Zone,North Indy,"ADD ADDRESS (north-side studio)",callin,"CALL (317) ___ — get tier names + prices + session length",Membership,~30-min sessions,,,30,REVIEW_callin,yes
+Stretch Zone,North Indy,"ADD ADDRESS (north-side studio)",callin,"CALL — confirm intro offer",Intro,first session,,,30,REVIEW_callin,
