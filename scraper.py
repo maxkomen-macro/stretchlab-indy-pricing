@@ -466,6 +466,9 @@ def load_stretchlab_retail():
                 "price": float(r["price"]),
                 "shared": r["shared"].strip().lower() == "yes",
                 "promo": r["promo"].strip().lower() == "yes",
+                # socks distinguishes the intro variants (Intro-50 $49 vs Intro-50-Socks $69);
+                # .get default keeps a column-less confidential CSV loading (socks -> False).
+                "socks": (r.get("socks") or "no").strip().lower() == "yes",
             })
     return rows
 
@@ -483,6 +486,8 @@ def _studio_from_retail(st, retail):
             "session_count": r["sessions"], "session_min": r["session_min"],
             "category": "promo" if (r["promo"] and r["category"] != "intro") else r["category"],
             "is_shared": r["shared"],
+            "is_socks": r["socks"],
+            "variant": "socks" if r["socks"] else "standard",
             "is_headline": False,
             "status": "retail_seed",
             "deviation_delta": None,
@@ -497,19 +502,23 @@ def _studio_from_retail(st, retail):
 
 
 def _match_retail(offer, retail):
-    """Match an offer to a retail row by (category, sessions, session_min, shared).
-    Two retail intros can share that key (e.g. Intro-50 $49 vs Intro-50-Socks $69),
-    so when several candidates tie, disambiguate to the nearest catalog price."""
+    """Match an offer to a retail row by IDENTITY: (category, sessions, session_min, shared, socks).
+    is_socks distinguishes the intro variants (Intro-50 $49 vs Intro-50-Socks $69) that used to
+    collapse to one key — intros now bind on identity, NEVER on price, so moving a variant toward
+    the other's corporate value can no longer silently mis-bind it. Nearest-price survives only as
+    a genuine last-resort tie-break for non-intro categories (and never fires today)."""
     key = (offer.get("category"), offer.get("session_count"),
-           offer.get("session_min"), bool(offer.get("is_shared")))
+           offer.get("session_min"), bool(offer.get("is_shared")), bool(offer.get("is_socks")))
     cands = [r for r in retail
-             if (r["category"], r["sessions"], r["session_min"], r["shared"]) == key]
+             if (r["category"], r["sessions"], r["session_min"], r["shared"], r["socks"]) == key]
     if not cands:
         return None
+    if offer.get("category") == "intro" or len(cands) == 1:
+        return cands[0]            # intros bind by identity; unique key elsewhere needs no tie-break
     price = offer.get("price")
     if price is None:
         return cands[0]
-    return min(cands, key=lambda r: abs(r["price"] - price))
+    return min(cands, key=lambda r: abs(r["price"] - price))   # last-resort, non-intro only
 
 
 def annotate_corporate_position(studio, retail):
@@ -642,6 +651,8 @@ def _map_api_package(pkg):
     cat = _api_category(pkg)
     smin = _smin_from(pkg)
     cnt = pkg.get("credit_count") or 1
+    name_l = (pkg.get("name") or "").lower()
+    is_socks = "socks" in name_l          # intro variant token (e.g. "... with Grip Socks")
     offer = {
         "name": pkg.get("name"),
         "structure": pkg.get("description") or (f"{cnt} x {smin}-min"
@@ -651,6 +662,8 @@ def _map_api_package(pkg):
         "session_min": smin,
         "category": cat,
         "is_addon": cat == "addon",
+        "is_socks": is_socks,
+        "variant": "socks" if is_socks else "standard",
         "is_headline": False,
         "deviation_delta": None,       # CONFIDENTIAL — filled by annotate_corporate_position
         "pricing_position": None,      # CONFIDENTIAL
@@ -900,6 +913,10 @@ def validate(snapshot):
             if o.get("mapping_flag") or (o.get("session_min") is None and o.get("category") == "single"):
                 needs_review.append(f"{s['brand']} {s['location']} · {o['name']} "
                                     f"({o.get('mapping_flag') or 'missing session_min'})")
+            # an unexpected no_baseline (a NON-add-on with no corporate match — e.g. an intro
+            # variant absent from the card) is surfaced, not pooled with baseline-less add-ons.
+            if o.get("pricing_position") == "no_baseline" and not o.get("is_addon"):
+                needs_review.append(f"{s['brand']} {s['location']} · {o['name']} (no corporate baseline)")
     incomplete = [f"{s['brand']} {s['location']}" for s in snapshot["studios"]
                   if all(o.get("price") is None for o in s["offers"])]
     snapshot["validation"] = {
