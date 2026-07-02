@@ -164,6 +164,28 @@
   .ovrow:hover{background:#F6F8FC;}
   .ovrow td{padding:11px 6px;} .ovrow td:first-child{padding-left:4px;}
 
+  /* expandable competitor rows (Snapshot) */
+  .crow{cursor:pointer;transition:.1s;}
+  .crow:hover{background:#F6F8FC;}
+  .crow .caret{display:inline-block;width:0;height:0;border-left:5px solid var(--ink-faint);border-top:4px solid transparent;border-bottom:4px solid transparent;margin-right:8px;vertical-align:middle;transition:transform .15s;}
+  .crow.open .caret{transform:rotate(90deg);}
+  .cdetail>td{padding:0;background:#FBFCFE;border-bottom:1px solid var(--line);}
+  .offerwrap{padding:2px 6px 12px;}
+  .offer-sub{width:100%;border-collapse:collapse;}
+  .offer-sub th{text-align:right;font-size:9.5px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-faint);padding:8px 8px 6px;border-bottom:1px solid var(--line);}
+  .offer-sub th:first-child{text-align:left;}
+  .offer-sub td{padding:7px 8px;border-bottom:1px solid var(--line);font-size:12px;text-align:right;}
+  .offer-sub td:first-child{text-align:left;}
+  .offer-sub tr:last-child td{border-bottom:0;}
+  .offer-name{font-weight:600;font-size:12.5px;}
+  .offer-struct{font-size:10.5px;color:var(--ink-faint);margin-top:1px;}
+  .offer-cat{text-transform:capitalize;}
+  .obadge{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:2px 6px;border-radius:999px;margin-left:6px;vertical-align:middle;}
+  .obadge.head{background:var(--violet-soft);color:var(--violet);}
+  .obadge.intro{background:var(--teal-soft);color:#0A7351;}
+  .obadge.promo{background:var(--amber-soft);color:#9A5800;}
+  .offer-empty{padding:12px 8px;font-size:12px;color:var(--ink-faint);}
+
   /* map */
   .mapbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap;}
   .mb-left{font-size:13px;display:inline-flex;align-items:center;gap:8px;}
@@ -277,14 +299,14 @@
 
 <div class="topbar">
   <div class="brandmark">B</div>
-  <div><h1>Competitive Pricing Benchmark</h1><div class="sub">StretchLab · California pilot</div></div>
-  <span class="sample-badge">Sample data</span>
+  <div><h1>Competitive Pricing Benchmark</h1><div class="sub" id="topSub">StretchLab</div></div>
+  <span class="sample-badge" id="sampleBadge">Sample data</span>
   <div class="spacer"></div>
   <span class="health-mini"><span class="d"></span>System healthy</span>
   <div class="refresh-meta">last refresh <b>Jun 2026</b><br>next run · Jul 1</div>
 </div>
 
-<div class="sample-strip"><b>Illustrative prototype.</b> Studios, prices, coordinates, and trends are placeholder sample data — not real competitor pricing.</div>
+<div class="sample-strip" id="sampleStrip"><b>Illustrative prototype.</b> Studios, prices, coordinates, and trends are placeholder sample data — not real competitor pricing.</div>
 
 <div class="tabbar">
   <button class="tabbtn active" data-tab="overview" onclick="showTab('overview')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Overview</button>
@@ -301,13 +323,13 @@
   <aside class="rail">
     <div class="rail-label">Filters</div>
     <div class="filterbox">
-      <div class="field"><span class="k">State scope</span><span class="pill-locked">California</span></div>
+      <div class="field"><span class="k">Market</span><span class="pill-locked" id="scopePill">Indianapolis, IN</span></div>
       <div class="field"><span class="k">Search radius</span><span class="v num">15 mi</span></div>
       <div class="field"><span class="k">Competitor set</span><span class="v">Direct + Adjacent</span></div>
     </div>
     <div class="rail-label">Find a studio</div>
     <div class="combo">
-      <input id="studioSearch" class="combo-input" type="text" placeholder="Search zip or studio name…" autocomplete="off" oninput="openCombo()" onfocus="openCombo()">
+      <input id="studioSearch" class="combo-input" type="text" placeholder="Search zip or studio name…" autocomplete="off" oninput="openCombo()" onfocus="focusCombo()">
       <button class="combo-arrow" onclick="toggleCombo(event)" aria-label="Show all studios"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
       <div id="comboDrop" class="combo-drop"></div>
     </div>
@@ -338,54 +360,37 @@
   </main>
 </div>
 
+<script src="data/latest.js"></script>
 <script>
 const MONTHS=["Mar","Apr","May","Jun"];
-function C(name,dLat,dLng,price,status){return {name,dLat,dLng,price,perMin:price?+(price/50).toFixed(2):null,status:status||(price?"scraped":"phone")};}
-function mkTiers(factor,intro){const R=[["Single session","50 min",89],["Single session","25 min",49],["4 / month","50 min",169],["8 / month","50 min",299],["Intro offer","50 min",89]];return R.map(r=>({name:r[0],len:r[1],retail:r[2],listed:(r[0]==="Intro offer"?intro:Math.round(r[2]*factor))}));}
-function S(o){
-  const D=o.d.map(c=>({name:c.name,ll:[o.lat+c.dLat,o.lng+c.dLng],price:c.price,perMin:c.perMin,status:c.status}));
-  const A=o.a.map(c=>({name:c.name,ll:[o.lat+c.dLat,o.lng+c.dLng],price:c.price,perMin:c.perMin,status:c.status}));
-  const s=o.market[0]-2,e=o.market[1];
+// Trends is NOT wired to real snapshots this pass. It reads trend/trendChart/baseline per
+// studio, so we attach an illustrative placeholder (ported from the old S() factory) client-side
+// only — nothing synthetic is written to disk. The Sample badge stays on the Trends tab.
+function withPlaceholderTrend(d){
+  const c0=d.competitors.direct[0]||d.competitors.adjacent[0]||{};
+  const s=d.market.min-2,e=d.market.median;
   const series=[Math.round(s),Math.round(s+(e-s)*0.45),Math.round(s+(e-s)*0.78),e];
-  const dpct=(((e-s)/s)*100).toFixed(1), overMkt=o.sl>o.market[1];
-  const r2=series.map(x=>x+(o.d[0].price?Math.max(0,o.d[0].price-e):4));
+  const dpct=(((e-s)/s)*100).toFixed(1), overMkt=d.slPerSession>d.market.median;
+  const r2=series.map(x=>x+(c0.price?Math.max(0,c0.price-e):4));
   const r2pct=(((r2[3]-r2[0])/r2[0])*100).toFixed(1);
-  return {id:o.id,name:"StretchLab — "+o.city,zip:o.zip,addr:o.addr,ll:[o.lat,o.lng],slPerSession:o.sl,intro:o.intro,
-    market:{min:o.market[0],median:o.market[1],max:o.market[2]},tiers:mkTiers(o.factor,o.intro),
-    competitors:{direct:D,adjacent:A},
+  return Object.assign({},d,{
     trendChart:{label:"Local direct median · per session (50-min)",series,now:"$"+e,delta:"+"+dpct+"%",dir:"up"},
     trend:[
       {t:"Local direct median · per session",s:"50-min equivalent",series,delta:"+"+dpct+"%",dir:"up"},
-      {t:o.d[0].name+" · single session",s:"50-min",series:r2,delta:"+"+r2pct+"%",dir:"up"},
+      {t:(c0.name||"Nearest competitor")+" · single session",s:"50-min",series:r2,delta:"+"+r2pct+"%",dir:"up"},
       {t:"Your position vs local median",s:"per-session percentile",series:(overMkt?[46,52,59,66]:[55,49,43,37]),delta:(overMkt?"+20 pts":"−18 pts"),dir:(overMkt?"up":"down")},
     ],
-    baseline:"Tracking began Mar 2026. Deltas compare Jun 2026 vs the Mar 2026 baseline snapshot."};
+    baseline:"Illustrative placeholder — Trends is not wired to real snapshots yet; deltas are synthetic until ≥2 monthly snapshots accumulate."});
 }
-const DATA=[
-  S({id:"pasadena",city:"Pasadena",zip:"91101",addr:"E Colorado Blvd, Pasadena, CA",lat:34.1478,lng:-118.1445,sl:79,market:[69,88,112],factor:0.94,intro:49,
-    d:[C("Flexworks Studio",.011,-.006,79),C("Bodyglide Stretch",-.035,-.033,95),C("Mobility Lab",.076,.022,112)],a:[C("Wellness Massage Group",.010,.016,79),C("Revive Spa & Stretch",-.028,.034,null,"login")]}),
-  S({id:"sandiego",city:"San Diego",zip:"92103",addr:"University Ave, Hillcrest, San Diego, CA",lat:32.7480,lng:-117.1611,sl:95,market:[72,84,99],factor:1.06,intro:59,
-    d:[C("Coastal Stretch",.007,-.009,72),C("Range Mobility",-.018,.021,84),C("Pacific Flex Studio",.032,-.029,99)],a:[C("Harbor Wellness Spa",.012,-.019,null,"phone"),C("Calm Body Massage",-.028,.011,69)]}),
-  S({id:"sf",city:"San Francisco",zip:"94123",addr:"Chestnut St, Marina, San Francisco, CA",lat:37.8003,lng:-122.4368,sl:99,market:[88,104,128],factor:1.10,intro:69,
-    d:[C("Marina Mobility",.003,-.006,108),C("Bay Stretch Lab Co.",-.012,.017,88),C("Vertical Flex",-.025,.007,null,"none"),C("Presidio Stretch",-.007,-.023,128)],a:[C("Nob Hill Wellness",.009,.023,null,"phone"),C("Union Massage Group",-.011,.029,95)]}),
-  S({id:"irvine",city:"Irvine",zip:"92618",addr:"Alton Pkwy, Irvine, CA",lat:33.6846,lng:-117.7926,sl:92,market:[74,90,108],factor:1.03,intro:55,
-    d:[C("Spectrum Stretch",.014,.009,88),C("OC Mobility",-.021,-.016,108)],a:[C("Serene Massage Co.",.018,-.022,null,"phone")]}),
-  S({id:"santamonica",city:"Santa Monica",zip:"90401",addr:"Wilshire Blvd, Santa Monica, CA",lat:34.0195,lng:-118.4912,sl:110,market:[96,118,142],factor:1.08,intro:65,
-    d:[C("Ocean Ave Stretch",.006,.011,128),C("Westside Mobility",-.017,-.014,118),C("Pier Flex Studio",.022,.006,null,"login")],a:[C("Bay Wellness Spa",-.013,.019,109)]}),
-  S({id:"sanjose",city:"San Jose",zip:"95128",addr:"Stevens Creek Blvd, San Jose, CA",lat:37.3230,lng:-121.9430,sl:98,market:[80,95,116],factor:1.04,intro:59,
-    d:[C("Valley Stretch",.012,-.008,92),C("Silicon Mobility",-.019,.022,116)],a:[C("Tranquil Massage",.015,.014,null,"phone")]}),
-  S({id:"sacramento",city:"Sacramento",zip:"95816",addr:"J St, Midtown, Sacramento, CA",lat:38.5723,lng:-121.4710,sl:85,market:[68,82,101],factor:0.96,intro:49,
-    d:[C("Midtown Stretch",.009,.012,78),C("Capital Mobility",-.016,-.019,101)],a:[C("River Wellness Spa",.014,-.011,72)]}),
-  S({id:"longbeach",city:"Long Beach",zip:"90802",addr:"Pine Ave, Long Beach, CA",lat:33.7701,lng:-118.1937,sl:84,market:[74,92,114],factor:0.92,intro:49,
-    d:[C("Shoreline Stretch",.011,.007,82),C("Harbor Mobility",-.022,-.013,114),C("Pine Flex Studio",.017,-.021,null,"phone")],a:[C("Coast Massage Group",-.014,.018,79)]}),
-  S({id:"walnutcreek",city:"Walnut Creek",zip:"94596",addr:"N Main St, Walnut Creek, CA",lat:37.9101,lng:-122.0652,sl:96,market:[82,99,120],factor:1.02,intro:55,
-    d:[C("Diablo Stretch",.013,-.009,99),C("East Bay Mobility",-.018,.016,120)],a:[C("Olive Wellness",.012,.021,null,"login")]}),
-  S({id:"encinitas",city:"Encinitas",zip:"92024",addr:"S Coast Hwy 101, Encinitas, CA",lat:33.0370,lng:-117.2920,sl:101,market:[80,97,121],factor:1.05,intro:62,
-    d:[C("Coast Hwy Stretch",.008,.010,104),C("North County Mobility",-.020,-.015,121)],a:[C("Lotus Massage Studio",.016,-.018,95)]}),
-];
+const MARKET_LABEL=(window.PRICING_DATA&&window.PRICING_DATA.market)||"Indianapolis";
+const DATA=((window.PRICING_DATA&&window.PRICING_DATA.dashboard_view)||[]).map(withPlaceholderTrend);
+// Competitor offer menus live in the top-level studios[] (keyed brand — location, matching
+// each competitor's name). Read-only lookup for the Snapshot competitor-row accordion (Fix 7).
+const STUDIOS_BY_NAME={};
+((window.PRICING_DATA&&window.PRICING_DATA.studios)||[]).forEach(s=>{STUDIOS_BY_NAME[s.brand+" — "+s.location]=s;});
 
-let activeTab="overview", current=DATA[0].id, mapScope="studio", compType="direct";
-let ovFilter="all", ovSort="variance", simRows=null, actFilter="all", mapRadius=15, mapType="direct";
+let activeTab="overview", current=DATA[0].id, mapScope="studio", compType="both";
+let ovFilter="all", ovSort="variance", simRows=null, actFilter="all", mapRadius=15, mapType="both", snapRadius=15;
 const ACTIVITY=[
   {type:"up",cat:"price",studio:"San Diego",text:"<b>Range Mobility</b> raised single-session pricing",sub:"Direct competitor · 1.2 mi from your studio",delta:"$84 → $89",when:"Jun 18"},
   {type:"new",cat:"new",studio:"Irvine",text:"New direct competitor discovered: <b>Spectrum Stretch</b>",sub:"Found via Places search · price scraped on first pass",delta:"+1 direct",when:"Jun 14"},
@@ -402,10 +407,12 @@ const get=id=>DATA.find(d=>d.id===id);
 const money=v=>v==null?"—":"$"+v;
 function miles(a,b){const R=3958.8,toR=x=>x*Math.PI/180;const dLat=toR(b[0]-a[0]),dLng=toR(b[1]-a[1]);const s=Math.sin(dLat/2)**2+Math.cos(toR(a[0]))*Math.cos(toR(b[0]))*Math.sin(dLng/2)**2;return R*2*Math.asin(Math.sqrt(s));}
 function positionPct(d){const{min,max}=d.market;return Math.max(0,Math.min(1,(d.slPerSession-min)/(max-min)));}
-function verdict(d){if(d.slPerSession<d.market.median-1)return{cls:"under",word:"Below local market"};if(d.slPerSession>d.market.median+1)return{cls:"over",word:"Above local market"};return{cls:"match",word:"At local market"};}
+function verdict(d){const scope=(d.competitors&&d.competitors.direct&&d.competitors.direct.length)?"local":"metro";if(d.slPerSession<d.market.median-1)return{cls:"under",word:"Below "+scope+" market"};if(d.slPerSession>d.market.median+1)return{cls:"over",word:"Above "+scope+" market"};return{cls:"match",word:"At "+scope+" market"};}
 function statusLabel(s){return {phone:"Needs phone call",login:"Needs login",none:"No pricing found"}[s]||"Unavailable";}
 const STATUS_COLOR={scraped:"#0E9F6E",phone:"#D97706",login:"#D97706",none:"#8A93A6"};
 function visibleComps(d){let arr;if(mapType==='both')arr=d.competitors.direct.map(c=>Object.assign({_t:'direct'},c)).concat(d.competitors.adjacent.map(c=>Object.assign({_t:'adjacent'},c)));else arr=d.competitors[mapType].map(c=>Object.assign({_t:mapType},c));return arr.filter(c=>miles(d.ll,c.ll)<=mapRadius);}
+// Snapshot-scoped mirror of visibleComps: radius filters by distance first, the Direct/Adjacent/All toggle sub-selects within that set.
+function visibleSnapComps(d){let arr;if(compType==='both')arr=d.competitors.direct.map(c=>Object.assign({_t:'direct'},c)).concat(d.competitors.adjacent.map(c=>Object.assign({_t:'adjacent'},c)));else arr=d.competitors[compType].map(c=>Object.assign({_t:compType},c));return arr.filter(c=>miles(d.ll,c.ll)<=snapRadius);}
 function priceColor(d,c){if(c.price==null)return "#8A93A6";if(c.price<d.slPerSession)return "#D97706";if(c.price>d.slPerSession)return "#0E9F6E";return "#8A93A6";}
 function priceVerdict(d,c){if(c.price==null)return "";return c.price<d.slPerSession?"Undercuts you":c.price>d.slPerSession?"You\u2019re cheaper":"Matches you";}
 const IC_PIN='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>';
@@ -415,9 +422,10 @@ function renderCombo(filter){
   const f=(filter||"").trim().toLowerCase();
   const matches=DATA.filter(d=>{const short=d.name.replace('StretchLab — ','').toLowerCase();return !f||short.includes(f)||d.zip.includes(f)||d.addr.toLowerCase().includes(f);});
   const drop=document.getElementById('comboDrop');
-  drop.innerHTML = matches.length ? matches.map(d=>{const v=verdict(d),col=v.cls==='under'?'var(--teal)':v.cls==='over'?'var(--amber)':'var(--ink-faint)';return `<div class="combo-item" onmousedown="pickStudio('${d.id}')"><div class="ci-name">${d.name.replace('StretchLab — ','')}</div><div class="ci-meta">${d.zip} · <span style="color:${col}">${v.word}</span></div></div>`;}).join("") : `<div class="combo-empty">No studios match that search.</div>`;
+  drop.innerHTML = matches.length ? matches.map(d=>{const v=verdict(d),col=v.cls==='under'?'var(--teal)':v.cls==='over'?'var(--amber)':'var(--ink-faint)';return `<div class="combo-item" onmousedown="pickStudio('${d.id}')"><div class="ci-name">${d.name.replace('StretchLab — ','')}</div><div class="ci-meta">${d.zip} · $${d.slPerSession} single 50-min · <span style="color:${col}">${v.word}</span></div></div>`;}).join("") : `<div class="combo-empty">No studios match that search.</div>`;
 }
 function openCombo(){renderCombo(document.getElementById('studioSearch').value);document.getElementById('comboDrop').classList.add('open');}
+function focusCombo(){const inp=document.getElementById('studioSearch');renderCombo("");inp.select();document.getElementById('comboDrop').classList.add('open');}
 function closeCombo(){document.getElementById('comboDrop').classList.remove('open');}
 function toggleCombo(e){e.preventDefault();e.stopPropagation();const drop=document.getElementById('comboDrop');if(drop.classList.contains('open')){closeCombo();}else{document.getElementById('studioSearch').value="";renderCombo("");drop.classList.add('open');}}
 function pickStudio(id){selectStudio(id);setComboValue(id);closeCombo();}
@@ -441,28 +449,28 @@ function buildSnapMap(){
     L.circle(d.ll,{radius:24140,color:'#5B4FA8',weight:1.4,dashArray:'5 5',fill:true,fillColor:'#5B4FA8',fillOpacity:.05}).addTo(snapMap);
     L.marker(d.ll,{icon:dot('#5B4FA8',18)}).addTo(snapMap).bindPopup('<div class="pop-name">'+d.name+'</div>');
     const pts=[d.ll];
-    d.competitors[compType].forEach(c=>{const col=STATUS_COLOR[c.status];L.marker(c.ll,{icon:dot(col,12)}).addTo(snapMap).bindPopup('<div class="pop-name">'+c.name+'</div><div class="pop-row">'+(c.price==null?statusLabel(c.status):'$'+c.price+' · '+miles(d.ll,c.ll).toFixed(1)+' mi')+'</div>');L.polyline([d.ll,c.ll],{color:col,weight:1.2,opacity:.45,dashArray:'2 5'}).addTo(snapMap);pts.push(c.ll);});
+    visibleSnapComps(d).forEach(c=>{const col=STATUS_COLOR[c.status];L.marker(c.ll,{icon:dot(col,12)}).addTo(snapMap).bindPopup('<div class="pop-name">'+c.name+'</div><div class="pop-row">'+(c.price==null?statusLabel(c.status):'$'+c.price+' · '+miles(d.ll,c.ll).toFixed(1)+' mi')+'</div>');L.polyline([d.ll,c.ll],{color:col,weight:1.2,opacity:.45,dashArray:'2 5'}).addTo(snapMap);pts.push(c.ll);});
     snapMap.fitBounds(pts,{padding:[26,26],maxZoom:13});
     setTimeout(()=>{if(snapMap)snapMap.invalidateSize();},60);
   }catch(e){}
 }
-function drawAll(){if(!map||!layer)return;try{layer.clearLayers();const pts=[];DATA.forEach(d=>{const v=verdict(d),col=v.cls==="over"?"#D97706":v.cls==="under"?"#0E9F6E":"#5B4FA8";const m=L.marker(d.ll,{icon:dot(col,15)}).addTo(layer);m.bindTooltip(d.name.replace("StretchLab — ",""),{direction:'top'});m.bindPopup(`<div class="pop-name">${d.name}</div><div class="pop-row">${v.word} · your <span class="num">$${d.slPerSession}</span> vs median <span class="num">$${d.market.median}</span></div><div class="pop-row" style="color:var(--violet)">Click pin to open →</div>`);m.on('click',()=>selectFromMap(d.id));pts.push(d.ll);});if(pts.length)map.fitBounds(pts,{padding:[34,34]});}catch(e){}}
-function drawStudio(fly){if(!map||!layer)return;try{const d=get(current);layer.clearLayers();L.circle(d.ll,{radius:mapRadius*1609.34,color:'#5B4FA8',weight:1.5,dashArray:'5 5',fill:true,fillColor:'#5B4FA8',fillOpacity:.05}).addTo(layer);L.marker(d.ll,{icon:dot('#5B4FA8',20)}).addTo(layer).bindTooltip(`${d.name.replace('StretchLab — ','')} · $${d.slPerSession}`,{direction:'top'}).bindPopup(`<div class="pop-name">${d.name}</div><div class="pop-row">Your effective <span class="num">$${d.slPerSession}</span>/session</div>`);const pts=[d.ll];visibleComps(d).forEach(c=>{const dist=miles(d.ll,c.ll).toFixed(1),adj=c._t==='adjacent',col=adj?'#94A3B8':priceColor(d,c),pv=adj?'':priceVerdict(d,c);const tip=`${c.name}${adj?' · adjacent':''}${c.price==null?(adj?'':' · '+statusLabel(c.status)):' · $'+c.price}`;L.marker(c.ll,{icon:dot(col,15,adj)}).addTo(layer).bindTooltip(tip,{direction:'top'}).bindPopup(`<div class="pop-name">${c.name}</div><div class="pop-row">${adj?'Adjacent · context · ':''}${dist} mi away</div><div class="pop-row">${c.price==null?'<i>'+statusLabel(c.status)+'</i>':'Headline <span class="num">$'+c.price+'</span> · <span class="num">$'+c.perMin.toFixed(2)+'</span>/min'}</div>${pv?'<div class="pop-row" style="color:'+col+';font-weight:600">'+pv+'</div>':''}`);L.polyline([d.ll,c.ll],{color:col,weight:1.5,opacity:adj?.32:.5,dashArray:'2 5'}).addTo(layer);pts.push(c.ll);});if(fly){try{map.flyToBounds(pts,{padding:[55,55],maxZoom:14,duration:.55});}catch(e){map.setView(d.ll,13);}}}catch(e){}}
+function drawAll(){if(!map||!layer)return;try{layer.clearLayers();const pts=[];DATA.forEach(d=>{const v=verdict(d),col=v.cls==="over"?"#D97706":v.cls==="under"?"#0E9F6E":"#5B4FA8";const m=L.marker(d.ll,{icon:dot(col,15)}).addTo(layer);m.bindTooltip(d.name.replace("StretchLab — ",""),{direction:'top'});m.bindPopup(`<div class="pop-name">${d.name}</div><div class="pop-row">${v.word} · your single 50-min <span class="num">$${d.slPerSession}</span> vs median <span class="num">$${d.market.median}</span></div><div class="pop-row" style="color:var(--violet)">Click pin to open →</div>`);m.on('click',()=>selectFromMap(d.id));pts.push(d.ll);});if(pts.length)map.fitBounds(pts,{padding:[34,34]});}catch(e){}}
+function drawStudio(fly){if(!map||!layer)return;try{const d=get(current);layer.clearLayers();L.circle(d.ll,{radius:mapRadius*1609.34,color:'#5B4FA8',weight:1.5,dashArray:'5 5',fill:true,fillColor:'#5B4FA8',fillOpacity:.05}).addTo(layer);L.marker(d.ll,{icon:dot('#5B4FA8',20)}).addTo(layer).bindTooltip(`${d.name.replace('StretchLab — ','')} · $${d.slPerSession}`,{direction:'top'}).bindPopup(`<div class="pop-name">${d.name}</div><div class="pop-row">Your single 50-min <span class="num">$${d.slPerSession}</span>/session</div>`);const pts=[d.ll];visibleComps(d).forEach(c=>{const dist=miles(d.ll,c.ll).toFixed(1),adj=c._t==='adjacent',col=adj?'#94A3B8':priceColor(d,c),pv=adj?'':priceVerdict(d,c);const tip=`${c.name}${adj?' · adjacent':''}${c.price==null?(adj?'':' · '+statusLabel(c.status)):' · $'+c.price}`;L.marker(c.ll,{icon:dot(col,15,adj)}).addTo(layer).bindTooltip(tip,{direction:'top'}).bindPopup(`<div class="pop-name">${c.name}</div><div class="pop-row">${adj?'Adjacent · context · ':''}${dist} mi away</div><div class="pop-row">${c.price==null?'<i>'+statusLabel(c.status)+'</i>':'Headline <span class="num">$'+c.price+'</span> · <span class="num">$'+c.perMin.toFixed(2)+'</span>/min'}</div>${pv?'<div class="pop-row" style="color:'+col+';font-weight:600">'+pv+'</div>':''}`);L.polyline([d.ll,c.ll],{color:col,weight:1.5,opacity:adj?.32:.5,dashArray:'2 5'}).addTo(layer);pts.push(c.ll);});if(fly){try{map.flyToBounds(pts,{padding:[55,55],maxZoom:14,duration:.55});}catch(e){map.setView(d.ll,13);}}}catch(e){}}
 function drawMapNow(){ if(mapScope==='all') drawAll(); else drawStudio(true); }
 function mapFallback(){const m=document.getElementById('map');if(m)m.innerHTML='<div class="map-empty">The interactive map needs internet to load its tiles.<br>If you see this in the in-app preview, download the file and open it in a browser — the full map renders there.</div>';}
 function bootMap(){if(typeof L!=='undefined'){initMap();return;}let n=0;const iv=setInterval(()=>{if(typeof L!=='undefined'){clearInterval(iv);initMap();}else if(++n>60){clearInterval(iv);mapFallback();}},100);}
 function updateMapBar(){
   const d=get(current);
-  const scopeTog=`<div class="mb-toggle"><button class="${mapScope==='studio'?'active':''}" onclick="setMapScope('studio')">This studio</button><button class="${mapScope==='all'?'active':''}" onclick="setMapScope('all')">All California</button></div>`;
+  const scopeTog=`<div class="mb-toggle"><button class="${mapScope==='studio'?'active':''}" onclick="setMapScope('studio')">This studio</button><button class="${mapScope==='all'?'active':''}" onclick="setMapScope('all')">All studios</button></div>`;
   let left, right;
   if(mapScope==='all'){
-    left=`<span class="mb-dot"></span><b>All California studios</b>`;
+    left=`<span class="mb-dot"></span><b>All studios</b>`;
     right=scopeTog;
   } else {
     const n=visibleComps(d).length;
     left=`<span class="mb-dot"></span><b>${d.name.replace('StretchLab — ','')}</b> · ${mapRadius}-mi radius · ${n} ${mapType==='both'?'nearby':mapType}`;
     const radSel=`<label class="mb-rad">Radius <select onchange="setMapRadius(this.value)">${[5,10,15,25,50].map(r=>`<option value="${r}" ${r===mapRadius?'selected':''}>${r} mi</option>`).join('')}</select></label>`;
-    const typeTog=`<div class="mb-toggle"><button class="${mapType==='direct'?'active':''}" onclick="setMapType('direct')">Direct</button><button class="${mapType==='adjacent'?'active':''}" onclick="setMapType('adjacent')">Adjacent</button><button class="${mapType==='both'?'active':''}" onclick="setMapType('both')">Both</button></div>`;
+    const typeTog=`<div class="mb-toggle"><button class="${mapType==='direct'?'active':''}" onclick="setMapType('direct')">Direct</button><button class="${mapType==='adjacent'?'active':''}" onclick="setMapType('adjacent')">Adjacent</button><button class="${mapType==='both'?'active':''}" onclick="setMapType('both')">All</button></div>`;
     right=radSel+typeTog+scopeTog;
   }
   document.getElementById('mapbar').innerHTML=`<div class="mb-left">${left}</div><div class="mb-controls">${right}</div>`;
@@ -476,7 +484,7 @@ function spark(series,dir){const w=80,h=28,pad=3,min=Math.min(...series),max=Mat
 function bigChart(series,dir){const w=620,h=200,padL=44,padR=16,padT=16,padB=30;const min=Math.min(...series),max=Math.max(...series),sp=(max-min)||1,lo=min-sp*0.35,hi=max+sp*0.35,rng=hi-lo;const X=i=>padL+i*(w-padL-padR)/(series.length-1),Y=v=>padT+(1-(v-lo)/rng)*(h-padT-padB);const pts=series.map((v,i)=>[X(i),Y(v)]);const line=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");const area=`M${X(0)} ${Y(lo)} `+pts.map(p=>"L"+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ")+` L${X(series.length-1)} ${Y(lo)} Z`;const col=dir==="up"?"#D97706":"#0E9F6E",fill=dir==="up"?"rgba(217,118,6,.10)":"rgba(14,159,110,.10)";let grid="";for(let g=0;g<=2;g++){const val=lo+rng*g/2,y=Y(val);grid+=`<line x1="${padL}" y1="${y.toFixed(1)}" x2="${w-padR}" y2="${y.toFixed(1)}" stroke="#E2E7F0"/><text x="${padL-8}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="10" fill="#8A93A6" font-family="IBM Plex Mono">$${Math.round(val)}</text>`;}const xlab=series.map((v,i)=>`<text x="${X(i).toFixed(1)}" y="${h-10}" text-anchor="middle" font-size="10.5" fill="#8A93A6">${MONTHS[i]}</text>`).join("");const dots=pts.map((p,i)=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${i===pts.length-1?4.5:3}" fill="${i===pts.length-1?col:'#fff'}" stroke="${col}" stroke-width="2"/>`).join("");const lastVal=series[series.length-1];const lbl=`<text x="${X(series.length-1).toFixed(1)}" y="${(Y(lastVal)-12).toFixed(1)}" text-anchor="end" font-size="12" font-weight="600" fill="${col}" font-family="IBM Plex Mono">$${lastVal}</text>`;return `<svg class="bigchart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">${grid}<path d="${area}" fill="${fill}"/><path d="${line}" fill="none" stroke="${col}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>${dots}${lbl}${xlab}</svg>`;}
 
 /* panels */
-function sheadHTML(d){const v=verdict(d);return `<div class="shead"><div><div class="crumb">California · ${d.zip} · 15-mi radius</div><h2>${d.name}</h2><div class="addr">${d.addr}</div></div><div class="countpill"><b>${d.competitors.direct.length}</b> direct · <b>${d.competitors.adjacent.length}</b> adjacent</div></div>`;}
+function sheadHTML(d){const v=verdict(d);return `<div class="shead"><div><div class="crumb">${MARKET_LABEL} · ${d.zip} · 15-mi radius</div><h2>${d.name}</h2><div class="addr">${d.addr}</div></div><div class="countpill"><b>${d.competitors.direct.length}</b> direct · <b>${d.competitors.adjacent.length}</b> adjacent</div></div>`;}
 
 function renderOverviewPanel(){
   let above=0,below=0,at=0,flagged=0,varSum=0;
@@ -499,10 +507,10 @@ function renderOverviewPanel(){
       <span class="schip warn"><span class="d"></span>${flagged} sources need manual pricing</span>
       <span class="schip example"><span class="tag">Example alert</span>a scraper returning 0 (was &gt;0) flags as silent breakage</span>
     </div>
-    <div class="ov-title">California portfolio</div>
+    <div class="ov-title">${MARKET_LABEL} portfolio</div>
     <div class="ov-sub">${DATA.length} studios tracked · click any studio to open its Map, Snapshot, and Trends</div>
     <div class="kpis">${kpi(DATA.length,"Studios tracked","")}${kpi(below,"Below local market","teal")}${kpi(above,"Above local market","amber")}${kpi(at,"At market","")}${kpi(flagged,"Sources need manual pricing","amber")}${kpi((avgVar>=0?"+":"")+avgVar.toFixed(0)+"%","Avg variance vs median",avgVar<0?"teal":"amber")}</div>
-    <div class="card"><h3>All California studios</h3>
+    <div class="card"><h3>All studios</h3>
       <div class="ov-controls">
         <div class="filterchips">${fc("all","All "+rowData.length)}${fc("under","Below market")}${fc("over","Above market")}${fc("flagged","Has flags")}</div>
         <div class="sortsel">Sort
@@ -513,8 +521,8 @@ function renderOverviewPanel(){
           </select>
         </div>
       </div>
-      <table class="ctable"><tr><th>Studio</th><th>Your $/sess</th><th>Local median</th><th>Variance</th><th>Position</th><th>Direct</th><th>Flagged</th></tr>${rows||'<tr><td colspan="7" style="text-align:center;color:var(--ink-faint);padding:22px">No studios match this filter.</td></tr>'}</table>
-      <div class="footnote">Click a row to open the studio. “Flagged” = competitor sites still needing a price. Variance = your per-session vs local median.</div>
+      <table class="ctable"><tr><th>Studio</th><th>Single 50-min $/sess</th><th>Market median (single 50-min)</th><th>Variance</th><th>Position</th><th>Direct</th><th>Flagged</th></tr>${rows||'<tr><td colspan="7" style="text-align:center;color:var(--ink-faint);padding:22px">No studios match this filter.</td></tr>'}</table>
+      <div class="footnote">Click a row to open the studio. “Flagged” = competitor sites still needing a price. Variance = your single 50-min $/sess vs the market median. Position shows local vs metro market.</div>
     </div>`;
 }
 function setOvFilter(k){ovFilter=k;renderOverviewPanel();}
@@ -522,12 +530,15 @@ function setOvSort(k){ovSort=k;renderOverviewPanel();}
 
 function renderSnapshotPanel(){
   const d=get(current),v=verdict(d),pct=positionPct(d)*100,medPct=((d.market.median-d.market.min)/(d.market.max-d.market.min))*100,flagPct=Math.max(13,Math.min(87,pct));
-  const tierRows=d.tiers.map(t=>{const diff=t.listed-t.retail;let cls="match",txt="at retail";if(diff<0){cls="under";txt=money(Math.abs(diff))+" under";}else if(diff>0){cls="over";txt="+"+money(diff)+" over";}return `<tr><td>${t.name}<span class="tier-len">${t.len}</span></td><td class="num">${money(t.retail)}</td><td class="num">${money(t.listed)}</td><td><span class="delta ${cls}">${txt}</span></td></tr>`;}).join("");
-  const compRows=d.competitors[compType].map(c=>{const dist=miles(d.ll,c.ll).toFixed(1),val=c.price==null?`<span class="na">${statusLabel(c.status)}</span>`:`<span class="num">${money(c.price)}</span>`,ps=c.price==null?'<span class="na">—</span>':'$'+c.price,pm=c.perMin==null?'<span class="na">—</span>':'$'+c.perMin.toFixed(2),ct={scraped:"Scraped",phone:"Phone",login:"Login",none:"Not found"};return `<tr><td><div class="cname">${c.name}</div><div class="ctag">${compType}</div></td><td class="num">${dist} mi</td><td>${val}</td><td class="num">${ps}</td><td class="num">${pm}</td><td><span class="chip ${c.status}"><span class="d"></span>${ct[c.status]}</span></td></tr>`;}).join("");
+  const tierRows=d.tiers.map(t=>{const diff=t.listed-t.retail;let cls="match",txt="at retail";if(diff<0){cls="under";txt=money(Math.abs(diff))+" under";}else if(diff>0){cls="over";txt="+"+money(diff)+" over";}const mark=t.observed?' <small style="color:var(--teal)">· scraped</small>':' <small style="color:var(--ink-faint)">· retail card (not observed)</small>';return `<tr><td>${t.name}<span class="tier-len">${t.len}</span>${mark}</td><td class="num">${money(t.retail)}</td><td class="num">${money(t.listed)}</td><td><span class="delta ${cls}">${txt}</span></td></tr>`;}).join("");
+  const ct={scraped:"Scraped",phone:"Phone",login:"Login",none:"Not found"};
+  const vis=visibleSnapComps(d);
+  const compRows=vis.length?vis.map(c=>{const dist=miles(d.ll,c.ll).toFixed(1),ps=c.price==null?`<span class="na">${statusLabel(c.status)}</span>`:'$'+c.price,pm=c.perMin==null?'<span class="na">—</span>':'$'+c.perMin.toFixed(2);return `<tr class="crow" onclick="toggleCompRow(this)"><td><span class="caret"></span><span class="cname">${c.name}</span><div class="ctag">${c._t}</div></td><td class="num">${dist} mi</td><td class="num">${ps}</td><td class="num">${pm}</td><td><span class="chip ${c.status}"><span class="d"></span>${ct[c.status]}</span></td></tr><tr class="cdetail" style="display:none"><td colspan="5"><div class="offerwrap">${offerRowsHTML(c)}</div></td></tr>`;}).join(""):`<tr><td colspan="5" style="text-align:center;color:var(--ink-faint);padding:20px">No competitors within ${snapRadius} mi — widen the radius.</td></tr>`;
   document.getElementById('panel-snapshot').innerHTML=sheadHTML(d)+`
     <div class="grid2">
-      <div class="card"><h3>Your pricing · retail vs this studio's listed</h3><table class="ptable"><tr><th>Tier</th><th>Retail</th><th>Listed</th><th>Variance</th></tr>${tierRows}</table></div>
-      <div class="card poscard"><h3>Market position · per session (50-min)</h3><div class="posbody">
+      <div class="card"><h3>Your pricing · retail vs this studio's listed</h3><table class="ptable"><tr><th>Tier</th><th>Retail</th><th>Listed</th><th>Variance</th></tr>${tierRows}</table>
+        <div class="footnote">The four card rows are the StretchLab national retail card — per-location menus are portal-gated and were not independently observed, so retail and listed match by construction. The Intro row is this location&#39;s one scraped price.</div></div>
+      <div class="card poscard"><h3>Market position · single 50-min session</h3><div class="posbody">
         <div class="pos-head"><span class="pos-verdict ${v.cls}">${v.word}</span><span class="pos-sub">your ~$${d.slPerSession}<br>vs median $${d.market.median}</span></div>
         <div class="track2"><div class="bar"></div>
           ${barDots(d)}
@@ -537,13 +548,24 @@ function renderSnapshotPanel(){
         </div>
         <div class="cdot-legend"><span class="cd"></span>each dot = a nearby direct competitor's per-session price</div></div></div>
     </div>
-    <div class="card snapmap-card"><h3>Local map · this studio &amp; nearby ${compType}</h3><div id="snapMap" class="snapmap"></div></div>
-    <div class="card"><div class="comp-head"><h3 style="margin:0">Nearby competitors</h3>
-      <div class="typetoggle"><button class="${compType==='direct'?'active':''}" onclick="setType('direct')">Direct</button><button class="${compType==='adjacent'?'active':''}" onclick="setType('adjacent')">Adjacent</button></div></div>
-      <table class="ctable"><tr><th>Studio</th><th>Distance</th><th>Headline</th><th>/ session</th><th>/ min</th><th>Source</th></tr>${compRows}</table>
+    <div class="card snapmap-card"><h3>Local map · this studio &amp; nearby competitors (within ${snapRadius} mi)</h3><div id="snapMap" class="snapmap"></div></div>
+    <div class="card"><div class="comp-head"><h3 style="margin:0">Nearby competitors <span style="font-weight:400;color:var(--ink-faint);font-size:11px">within ${snapRadius} mi</span></h3>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><label class="mb-rad">Radius <select onchange="setSnapRadius(this.value)">${[5,10,15,25,50].map(r=>`<option value="${r}" ${r===snapRadius?'selected':''}>${r} mi</option>`).join('')}</select></label><div class="typetoggle"><button class="${compType==='direct'?'active':''}" onclick="setType('direct')">Direct</button><button class="${compType==='adjacent'?'active':''}" onclick="setType('adjacent')">Adjacent</button><button class="${compType==='both'?'active':''}" onclick="setType('both')">All</button></div></div></div>
+      <table class="ctable"><tr><th>Studio</th><th>Distance</th><th>$/session</th><th>$/min</th><th>Source</th></tr>${compRows}</table>
       <div class="footnote">Distances are straight-line. Per-minute normalizes across session lengths. Adjacent (massage-led) competitors are context, not head-to-head. Unpriced studios carry a status flag — never a fabricated number.</div></div>`;
   setTimeout(buildSnapMap,0);
 }
+// Fix 7: each competitor row expands to its captured offer menu, sourced from the top-level
+// studios[] (joined by name). No fabrication — a competitor with no captured offers shows a note.
+function offerRowsHTML(c){
+  const src=STUDIOS_BY_NAME[c.name],offers=(src&&src.offers)||[];
+  if(!offers.length)return `<div class="offer-empty">No offer detail captured for this competitor.</div>`;
+  const fmt=v=>{if(v==null)return '—';const n=+v;return '$'+(n%1?n.toFixed(2):n.toFixed(0));};
+  const rows=offers.map(o=>{const badge=o.is_headline?'<span class="obadge head">headline</span>':o.is_intro?'<span class="obadge intro">intro</span>':o.is_promo?'<span class="obadge promo">promo</span>':'';return `<tr><td><span class="offer-name">${o.name}</span>${badge}<div class="offer-struct">${o.structure||''}${o.category?' · <span class="offer-cat">'+o.category+'</span>':''}</div></td><td class="num">${fmt(o.price)}</td><td class="num">${fmt(o.price_per_session)}</td><td class="num">${o.price_per_min==null?'—':'$'+(+o.price_per_min).toFixed(2)}</td></tr>`;}).join("");
+  return `<table class="offer-sub"><tr><th>Offer</th><th>Price</th><th>$/session</th><th>$/min</th></tr>${rows}</table>`;
+}
+function toggleCompRow(el){const det=el.nextElementSibling;if(!det||!det.classList.contains('cdetail'))return;const open=det.style.display!=='none';det.style.display=open?'none':'table-row';el.classList.toggle('open',!open);}
+function setSnapRadius(v){snapRadius=+v;renderSnapshotPanel();}
 
 function renderTrendsPanel(){
   const d=get(current),tc=d.trendChart;
@@ -672,9 +694,13 @@ function showTab(t){
   if(t==='simulator'){ simRows=null; renderSimPanel(); }
   if(t==='activity') renderActivityPanel();
   if(t==='map'){ updateMapBar(); setTimeout(()=>{ if(map){map.invalidateSize(); drawMapNow();} },80); }
+  applyChrome(t);
   updateCtx();
   document.querySelector('.main').scrollTo({top:0});
 }
+// The four wired tabs run on real data; the "Sample data" badge + strip stay ONLY on the two
+// still-placeholder tabs (Trends, Activity). Toggle the existing chrome per tab — no markup change.
+function applyChrome(t){const sample=(t==='trends'||t==='activity');const b=document.getElementById('sampleBadge'),st=document.getElementById('sampleStrip');if(b)b.style.display=sample?'':'none';if(st)st.style.display=sample?'':'none';}
 function updateCtx(){const c=document.getElementById('ctxChip'),d=get(current);c.innerHTML=`${IC_PIN} ${d.name.replace('StretchLab — ','')}`;c.style.display=(activeTab==='overview'||activeTab==='activity')?'none':'inline-flex';}
 function selectStudio(id){
   current=id; setComboValue(id); simRows=null; renderSnapshotPanel(); renderTrendsPanel(); renderSimPanel(); updateMapBar();
@@ -684,9 +710,12 @@ function selectStudio(id){
 function selectFromMap(id){ current=id; mapScope='studio'; setComboValue(id); simRows=null; renderSnapshotPanel(); renderTrendsPanel(); renderSimPanel(); updateMapBar(); updateCtx(); if(map){map.invalidateSize();drawStudio(true);} }
 function setType(t){compType=t;renderSnapshotPanel();if(activeTab==='map'){updateMapBar();drawMapNow();}}
 
+const _topSub=document.getElementById('topSub'); if(_topSub)_topSub.textContent="StretchLab · "+MARKET_LABEL;
+const _scopePill=document.getElementById('scopePill'); if(_scopePill)_scopePill.textContent=MARKET_LABEL;
 setComboValue(current);
 renderOverviewPanel();
 updateCtx();
+applyChrome(activeTab);
 document.addEventListener('click',e=>{const c=document.querySelector('.combo');if(c&&!c.contains(e.target))closeCombo();});
 bootMap();
 </script>
