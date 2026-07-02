@@ -7,8 +7,14 @@ __pycache__/
 # Confidential & generated pricing data — NEVER commit.
 # Holds StretchLab internal pricing and live competitor snapshots.
 data/manual_entries.csv
+data/stretchlab_retail.csv
 data/latest.json
 data/latest.js
 data/snapshots/
+data/geocode_cache.json
 
 # NOTE: data/manual_entries.example.csv (public competitor template) IS committed.
+
+# Local scratch (throwaway recon) + editor/tooling config — keep out of the repo.
+scratch/
+.claude/
