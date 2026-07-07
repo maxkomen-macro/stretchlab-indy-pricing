@@ -30,6 +30,7 @@ Deps: pip install requests beautifulsoup4
 """
 
 import collections
+import copy
 import csv
 import datetime
 import json
@@ -756,7 +757,10 @@ def scrape_stretchlab():
                 _finalize(o)
             studio = {"brand": STRETCHLAB["brand"], "location": st["location"],
                       "address": st["address"],
-                      "source": {"method": "scraped", "url": url,
+                      # via = discovery route (html/render = live DOM; slug_cache = cached slug,
+                      # still verified live below). PUBLIC provenance — survives the client scrub,
+                      # lets the dashboard badge tell "live scrape" from "slug cache".
+                      "source": {"method": "scraped", "url": url, "via": how,
                                  "api": f"{MEMBERS_API}/{slug}/packages", "collected_at": now},
                       "offers": offers}
             annotate_corporate_position(studio, retail)   # CONFIDENTIAL variance annotation (local only)
@@ -769,6 +773,7 @@ def scrape_stretchlab():
             reason = "stale_slug" if stale else ("api_empty" if slug else how)
             studio = _studio_from_retail(st, retail)
             studio["source"]["method"] = f"seed_used_{reason}"   # never labeled scraped
+            studio["source"]["via"] = how                        # discovery route (public provenance)
             log.error("StretchLab %s: API scrape FAILED (%s) -> retail_seed fallback",
                       st["location"], reason)
         out.append(studio)
@@ -999,13 +1004,40 @@ def validate(snapshot):
 
 
 # ──────────────────────── STORE ───────────────────────────
+# CONFIDENTIALITY BOUNDARY. deviation_delta / pricing_position / pricing_findings expose the
+# corporate card (by subtraction) and StretchLab's per-studio pricing strategy — they must never
+# reach the browser. store() keeps the FULL snapshot in the gitignored local files (dated history
+# + latest.json) and writes a SCRUBBED deep copy to latest.js, the one file the dashboards load.
+# The safe coarse dashboard_view status + source.method/via ride through untouched.
+_CONFIDENTIAL_OFFER_FIELDS = ("deviation_delta", "pricing_position")
+
+
+def _client_copy(snapshot):
+    """A deep-copied, confidentiality-scrubbed snapshot for the browser payload (latest.js).
+    Strips deviation_delta + pricing_position from every studios[].offers[] entry and drops
+    validation.pricing_findings. Idempotent and defensive — safe whether the keys are present or
+    not, so a second call (or already-scrubbed input) yields the same result and never raises."""
+    client = copy.deepcopy(snapshot)
+    for s in client.get("studios", []):
+        for o in s.get("offers", []):
+            for f in _CONFIDENTIAL_OFFER_FIELDS:
+                o.pop(f, None)
+    val = client.get("validation")
+    if isinstance(val, dict):
+        val.pop("pricing_findings", None)
+    return client
+
+
 def store(snapshot):
     today = datetime.date.today().isoformat()
-    (SNAPS / f"{today}.json").write_text(json.dumps(snapshot, indent=2))   # never overwrite history
+    # FULL fidelity — gitignored, local only (dated history is never overwritten across days)
+    (SNAPS / f"{today}.json").write_text(json.dumps(snapshot, indent=2))
     (DATA / "latest.json").write_text(json.dumps(snapshot, indent=2))
-    # latest.js lets preview.html load by double-click (no local server / CORS)
-    (DATA / "latest.js").write_text("window.PRICING_DATA = " + json.dumps(snapshot, indent=2) + ";")
-    log.info("Wrote snapshot %s + latest.json + latest.js", today)
+    # SCRUBBED client copy — the ONLY snapshot the dashboards load (dashboard.html + preview.html
+    # both <script src="data/latest.js">). Confidential fields never reach the browser here.
+    client = _client_copy(snapshot)
+    (DATA / "latest.js").write_text("window.PRICING_DATA = " + json.dumps(client, indent=2) + ";")
+    log.info("Wrote snapshot %s + latest.json (full) + latest.js (scrubbed client copy)", today)
 
 
 # ──────────────────────── SUMMARY / REPORT ─────────────────────────
@@ -1130,20 +1162,35 @@ def _pick_offer(offers, category, session_min, session_count, prefer_scraped):
 
 
 def _build_tiers(studio):
-    """Map the fixed 5-row tier template to this studio's real offers. Both retail and listed
-    carry the PUBLIC scraped price (this view never reads the confidential deviation_delta or
-    the corporate card, so no variance leaks); `observed` is true when the studio was scraped
-    live. Real retail-vs-listed variance is deferred to the comparison block."""
+    """Map the fixed 5-row tier template to this studio's real offers, emitting a SAFE per-tier
+    card-position status for the client. `listed` is the PUBLIC scraped price; `status`/`holds`
+    are derived SERVER-SIDE from the confidential pricing_position but reduced to a COARSE label
+    (at | moved | no_baseline | not_observed) — never the signed delta, the direction, or the
+    corporate card. So the browser learns *that* a tier moved off card, never by how much or
+    which way (the card cannot be reconstructed by subtraction). `observed` is true only when the
+    studio was scraped live."""
     tiers = []
     scraped_studio = studio["source"].get("method") == "scraped"
     for name, length, category, smin, scount, prefer_scraped in _TIER_TEMPLATE:
         o = _pick_offer(studio["offers"], category, smin, scount, prefer_scraped)
         price = _round_dollar(o["price"]) if o and o.get("price") is not None else None
+        pos = o.get("pricing_position") if o else None      # CONFIDENTIAL — consumed here, never emitted
+        if not scraped_studio or o is None:
+            status, holds = "not_observed", None
+        elif pos == "at":
+            status, holds = "at", True
+        elif pos in ("above", "below"):
+            status, holds = "moved", False                  # coarse: no number, no direction
+        elif pos == "no_baseline":
+            status, holds = "no_baseline", None
+        else:
+            status, holds = "not_observed", None            # scraped but position absent (defensive)
         tiers.append({
             "name": name,
             "len": length,
-            "retail": price,
             "listed": price,
+            "holds": holds,
+            "status": status,
             "observed": bool(o and scraped_studio),
         })
     return tiers
@@ -1209,6 +1256,9 @@ def build_dashboard_view(studios):
             "name": f"{s['brand']} — {s['location']}",
             "zip": _parse_zip(s.get("address", "")),
             "addr": s.get("address", ""),
+            # SAFE provenance (method + discovery route) so the badge + per-row grid gate are
+            # self-contained. Neither field is confidential; both ride through the client scrub.
+            "source": {"method": s["source"].get("method"), "via": s["source"].get("via")},
             "ll": [lat, lng],
             "slPerSession": _round_dollar(sha["price_per_session"]) if sha.get("price_per_session") is not None else None,
             "intro": _pick_intro(s),

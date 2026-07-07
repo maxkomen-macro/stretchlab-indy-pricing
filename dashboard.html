@@ -140,6 +140,47 @@
   .shead .addr{font-size:12.5px;color:var(--ink-soft);margin-top:2px;}
   .countpill{font-size:11.5px;color:var(--ink-soft);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 13px;white-space:nowrap;}
   .countpill b{color:var(--ink);}
+  /* provenance badge — source state, rendered before any pricing (guardrail: no confident board on a degraded source) */
+  .prov-row{display:flex;align-items:center;gap:9px;margin-top:9px;flex-wrap:wrap;}
+  .prov-note{font-size:10.5px;color:var(--ink-faint);}
+  .provbadge{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:600;letter-spacing:.3px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);}
+  .provbadge .pd{width:7px;height:7px;border-radius:50%;}
+  .prov-live{background:var(--teal-soft);color:#0A7351;border-color:#BFE7D6;} .prov-live .pd{background:var(--teal);}
+  .prov-cache{background:var(--blue-soft);color:#1B4E96;border-color:#B5D4F4;} .prov-cache .pd{background:var(--blue);}
+  .prov-seed{background:var(--amber-soft);color:#9A5800;border-color:#F0DDBE;} .prov-seed .pd{background:var(--amber);}
+  .prov-stale{background:#FCEBEB;color:#A32D2D;border-color:#F7C1C1;} .prov-stale .pd{background:#E24B4A;}
+  /* tier card-position chip — STATUS ONLY, never a number or direction */
+  .tchip{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;}
+  .tchip .td{width:7px;height:7px;border-radius:50%;}
+  .tchip.at{background:var(--teal-soft);color:#0A7351;} .tchip.at .td{background:var(--teal);}
+  .tchip.moved{background:var(--amber-soft);color:#9A5800;} .tchip.moved .td{background:var(--amber);}
+  .tchip.nb{background:var(--violet-soft);color:var(--violet);} .tchip.nb .td{background:var(--violet);}
+  .tchip.no{background:#EEF1F6;color:var(--ink-faint);} .tchip.no .td{background:var(--ink-faint);}
+  /* cross-studio card-hold summary strip (verdict headline + 5x5 status grid) */
+  .sumstrip{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;box-shadow:var(--shadow);}
+  .sumhead{display:flex;align-items:center;gap:14px;padding:14px 17px;}
+  .sumhead.hold{background:#F3FBF7;border-bottom:1px solid #D6EFE3;}
+  .sumhead.moved{background:#FEF7EE;border-bottom:1px solid #F3E4CB;}
+  .sum-ico{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;font-size:21px;font-weight:700;font-family:'Space Grotesk';}
+  .sum-ico.hold{background:var(--teal-soft);color:var(--teal);} .sum-ico.moved{background:var(--amber-soft);color:var(--amber);}
+  .sum-verdict{font-family:'Space Grotesk';font-weight:600;font-size:18px;line-height:1.2;}
+  .sum-verdict.hold{color:#0A7351;} .sum-verdict.moved{color:#9A5800;}
+  .sum-sub{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .sumgrid-wrap{padding:13px 17px 15px;background:var(--panel);overflow-x:auto;}
+  .sumgrid{display:grid;grid-template-columns:126px repeat(5,minmax(46px,1fr));gap:5px;align-items:center;min-width:440px;}
+  .sumgrid .gh{font-size:10px;color:var(--ink-faint);text-align:center;font-weight:500;}
+  .sumgrid .gr{font-size:11px;color:var(--ink-soft);font-weight:500;display:flex;align-items:center;gap:6px;white-space:nowrap;}
+  .sumgrid .gr.degraded{color:var(--ink-faint);}
+  .gcell{height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;}
+  .gcell.at{background:var(--teal-soft);color:var(--teal);}
+  .gcell.moved{background:var(--amber-soft);color:var(--amber);}
+  .gcell.nb{background:var(--violet-soft);color:var(--violet);}
+  .gcell.no{background:#EEF1F6;color:var(--ink-faint);}
+  .mprov{font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;padding:1px 6px;border-radius:999px;flex:none;}
+  .mprov-live{background:var(--teal-soft);color:#0A7351;}
+  .mprov-cache{background:var(--blue-soft);color:#1B4E96;}
+  .mprov-seed{background:var(--amber-soft);color:#9A5800;}
+  .mprov-stale{background:#FCEBEB;color:#A32D2D;}
 
   .comp-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;}
   .typetoggle{display:flex;border:1px solid var(--line-strong);border-radius:999px;overflow:hidden;}
@@ -484,7 +525,76 @@ function spark(series,dir){const w=80,h=28,pad=3,min=Math.min(...series),max=Mat
 function bigChart(series,dir){const w=620,h=200,padL=44,padR=16,padT=16,padB=30;const min=Math.min(...series),max=Math.max(...series),sp=(max-min)||1,lo=min-sp*0.35,hi=max+sp*0.35,rng=hi-lo;const X=i=>padL+i*(w-padL-padR)/(series.length-1),Y=v=>padT+(1-(v-lo)/rng)*(h-padT-padB);const pts=series.map((v,i)=>[X(i),Y(v)]);const line=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");const area=`M${X(0)} ${Y(lo)} `+pts.map(p=>"L"+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ")+` L${X(series.length-1)} ${Y(lo)} Z`;const col=dir==="up"?"#D97706":"#0E9F6E",fill=dir==="up"?"rgba(217,118,6,.10)":"rgba(14,159,110,.10)";let grid="";for(let g=0;g<=2;g++){const val=lo+rng*g/2,y=Y(val);grid+=`<line x1="${padL}" y1="${y.toFixed(1)}" x2="${w-padR}" y2="${y.toFixed(1)}" stroke="#E2E7F0"/><text x="${padL-8}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="10" fill="#8A93A6" font-family="IBM Plex Mono">$${Math.round(val)}</text>`;}const xlab=series.map((v,i)=>`<text x="${X(i).toFixed(1)}" y="${h-10}" text-anchor="middle" font-size="10.5" fill="#8A93A6">${MONTHS[i]}</text>`).join("");const dots=pts.map((p,i)=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${i===pts.length-1?4.5:3}" fill="${i===pts.length-1?col:'#fff'}" stroke="${col}" stroke-width="2"/>`).join("");const lastVal=series[series.length-1];const lbl=`<text x="${X(series.length-1).toFixed(1)}" y="${(Y(lastVal)-12).toFixed(1)}" text-anchor="end" font-size="12" font-weight="600" fill="${col}" font-family="IBM Plex Mono">$${lastVal}</text>`;return `<svg class="bigchart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">${grid}<path d="${area}" fill="${fill}"/><path d="${line}" fill="none" stroke="${col}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>${dots}${lbl}${xlab}</svg>`;}
 
 /* panels */
-function sheadHTML(d){const v=verdict(d);return `<div class="shead"><div><div class="crumb">${MARKET_LABEL} · ${d.zip} · 15-mi radius</div><h2>${d.name}</h2><div class="addr">${d.addr}</div></div><div class="countpill"><b>${d.competitors.direct.length}</b> direct · <b>${d.competitors.adjacent.length}</b> adjacent</div></div>`;}
+// Source provenance -> visible badge state. Live/cache are live-verified (green holds allowed);
+// seed/stale are NOT (green is gated on live per guardrail #4). `via` splits a fresh DOM scrape
+// from a cached-slug scrape; absent `via` on a scraped studio falls back to "live scrape".
+function provState(src){
+  const m=(src&&src.method)||"", via=(src&&src.via)||"";
+  if(m==="scraped") return via==="slug_cache"
+    ? {label:"Slug cache",  cls:"prov-cache", live:true,  short:"cache", tip:"Cached API slug — re-verified live this run"}
+    : {label:"Live scrape", cls:"prov-live",  live:true,  short:"live",  tip:"Scraped live from the studio site this run"};
+  if(m.indexOf("stale")>=0) return {label:"Stale — cached slug failed", cls:"prov-stale", live:false, short:"stale", tip:"Cached slug no longer resolves; showing the retail card, not a live price"};
+  if(m.indexOf("seed")>=0||m==="retail_seed") return {label:"Seed — retail card", cls:"prov-seed", live:false, short:"seed", tip:"Not observed live; national retail-card fallback"};
+  if(m==="callin"||m==="phone") return {label:"Phone", cls:"prov-seed", live:false, short:"phone", tip:"Collected by phone, not scraped"};
+  return {label:"Source unverified", cls:"prov-stale", live:false, short:"?", tip:"Provenance unknown — treated as not live"};
+}
+function provBadge(src){const p=provState(src);return `<span class="provbadge ${p.cls}" title="${p.tip}"><span class="pd"></span>${p.label}</span>`;}
+// tier card-position chip — STATUS ONLY (hold/moved/no-baseline/not-observed). Never a number,
+// never a direction: "Moved off card" says a tier left the card and nothing more.
+function tierChip(t){
+  const M={at:["at","Holds at card"],moved:["moved","Moved off card"],no_baseline:["nb","No card baseline"],not_observed:["no","Not observed"]};
+  const c=M[t.status]||M.not_observed;
+  return `<span class="tchip ${c[0]}" title="${c[1]}"><span class="td"></span>${c[1]}</span>`;
+}
+// Cross-studio "does the corporate card hold?" strip — verdict headline (A) + 5x5 status grid (B).
+// STATUS ONLY per cell — never a price, delta, or direction. Provenance gates colour PER ROW: a
+// studio whose source isn't live/verified renders greyed with its badge, so green can never mask
+// a degraded source (guardrail #4). Green verdict requires every studio live AND every tier at card.
+function summaryStripHTML(){
+  const studios=DATA, tierLabels=["50-min","25-min","4/mo","8/mo","Intro"];
+  let total=0,held=0,moved=0,nb=0,notobs=0,live=0,degraded=0;
+  const header=`<div></div>`+tierLabels.map(l=>`<div class="gh">${l}</div>`).join("");
+  const body=studios.map(d=>{
+    const p=provState(d.source), short=d.name.replace(/^StretchLab — /,"");
+    if(p.live)live++;else degraded++;
+    const cells=d.tiers.map(t=>{
+      total++;
+      if(!p.live){notobs++;return `<div class="gcell no" title="${short} · ${t.name} ${t.len} — not observed live">·</div>`;}
+      let cls,g,lab;
+      if(t.status==="at"){cls="at";g="✓";lab="holds at card";held++;}
+      else if(t.status==="moved"){cls="moved";g="≠";lab="moved off card";moved++;}
+      else if(t.status==="no_baseline"){cls="nb";g="–";lab="no card baseline";nb++;}
+      else {cls="no";g="·";lab="not observed";notobs++;}
+      return `<div class="gcell ${cls}" title="${short} · ${t.name} ${t.len} — ${lab}">${g}</div>`;
+    }).join("");
+    const mcls=p.cls.replace("prov-","mprov-");
+    const label=`<div class="gr ${p.live?"":"degraded"}" title="${p.tip}">${short}<span class="mprov ${mcls}">${p.short}</span></div>`;
+    return label+cells;
+  }).join("");
+  const allHold = moved===0 && nb===0 && notobs===0 && degraded===0;
+  let cls,ico,verdict,sub;
+  if(allHold){
+    cls="hold";ico="✓";
+    verdict=`Card holds across all ${studios.length} studios`;
+    sub=`${held} of ${total} tiers at the corporate card · all live-scraped`;
+  }else if(moved>0){
+    cls="moved";ico="!";
+    verdict=`${moved} tier${moved>1?"s":""} moved off card`;
+    sub=`${held} of ${total} hold${degraded?` · ${degraded} studio${degraded>1?"s":""} not observed live`:""}`;
+  }else{
+    cls="moved";ico="!";
+    const bits=[];
+    if(degraded)bits.push(`${degraded} studio${degraded>1?"s":""} not observed live`);
+    if(nb)bits.push(`${nb} tier${nb>1?"s":""} without a card baseline`);
+    if(notobs&&!degraded)bits.push(`${notobs} tier${notobs>1?"s":""} not observed`);
+    verdict=`${held} of ${total} tiers at card`;
+    sub=bits.join(" · ")||"awaiting full verification";
+  }
+  return `<div class="sumstrip"><div class="sumhead ${cls}"><div class="sum-ico ${cls}">${ico}</div>`
+    +`<div><div class="sum-verdict ${cls}">${verdict}</div><div class="sum-sub">${sub}</div></div></div>`
+    +`<div class="sumgrid-wrap"><div class="sumgrid">${header+body}</div></div></div>`;
+}
+function sheadHTML(d){return `<div class="shead"><div><div class="crumb">${MARKET_LABEL} · ${d.zip} · 15-mi radius</div><h2>${d.name}</h2><div class="addr">${d.addr}</div><div class="prov-row">${provBadge(d.source)}<span class="prov-note">source state — shown before any pricing</span></div></div><div class="countpill"><b>${d.competitors.direct.length}</b> direct · <b>${d.competitors.adjacent.length}</b> adjacent</div></div>`;}
 
 function renderOverviewPanel(){
   let above=0,below=0,at=0,flagged=0,varSum=0;
@@ -530,14 +640,14 @@ function setOvSort(k){ovSort=k;renderOverviewPanel();}
 
 function renderSnapshotPanel(){
   const d=get(current),v=verdict(d),pct=positionPct(d)*100,medPct=((d.market.median-d.market.min)/(d.market.max-d.market.min))*100,flagPct=Math.max(13,Math.min(87,pct));
-  const tierRows=d.tiers.map(t=>{const diff=t.listed-t.retail;let cls="match",txt="at retail";if(diff<0){cls="under";txt=money(Math.abs(diff))+" under";}else if(diff>0){cls="over";txt="+"+money(diff)+" over";}const mark=t.observed?' <small style="color:var(--teal)">· scraped</small>':' <small style="color:var(--ink-faint)">· retail card (not observed)</small>';return `<tr><td>${t.name}<span class="tier-len">${t.len}</span>${mark}</td><td class="num">${money(t.retail)}</td><td class="num">${money(t.listed)}</td><td><span class="delta ${cls}">${txt}</span></td></tr>`;}).join("");
+  const tierRows=d.tiers.map(t=>{const mark=t.observed?' <small style="color:var(--teal)">· scraped</small>':' <small style="color:var(--ink-faint)">· not observed</small>';return `<tr><td>${t.name}<span class="tier-len">${t.len}</span>${mark}</td><td class="num">${t.listed==null?'—':money(t.listed)}</td><td>${tierChip(t)}</td></tr>`;}).join("");
   const ct={scraped:"Scraped",phone:"Phone",login:"Login",none:"Not found"};
   const vis=visibleSnapComps(d);
   const compRows=vis.length?vis.map(c=>{const dist=miles(d.ll,c.ll).toFixed(1),ps=c.price==null?`<span class="na">${statusLabel(c.status)}</span>`:'$'+c.price,pm=c.perMin==null?'<span class="na">—</span>':'$'+c.perMin.toFixed(2);return `<tr class="crow" onclick="toggleCompRow(this)"><td><span class="caret"></span><span class="cname">${c.name}</span><div class="ctag">${c._t}</div></td><td class="num">${dist} mi</td><td class="num">${ps}</td><td class="num">${pm}</td><td><span class="chip ${c.status}"><span class="d"></span>${ct[c.status]}</span></td></tr><tr class="cdetail" style="display:none"><td colspan="5"><div class="offerwrap">${offerRowsHTML(c)}</div></td></tr>`;}).join(""):`<tr><td colspan="5" style="text-align:center;color:var(--ink-faint);padding:20px">No competitors within ${snapRadius} mi — widen the radius.</td></tr>`;
-  document.getElementById('panel-snapshot').innerHTML=sheadHTML(d)+`
+  document.getElementById('panel-snapshot').innerHTML=sheadHTML(d)+summaryStripHTML()+`
     <div class="grid2">
-      <div class="card"><h3>Your pricing · retail vs this studio's listed</h3><table class="ptable"><tr><th>Tier</th><th>Retail</th><th>Listed</th><th>Variance</th></tr>${tierRows}</table>
-        <div class="footnote">The four card rows are the StretchLab national retail card — per-location menus are portal-gated and were not independently observed, so retail and listed match by construction. The Intro row is this location&#39;s one scraped price.</div></div>
+      <div class="card"><h3>Your pricing · card position by tier</h3><table class="ptable"><tr><th>Tier</th><th>Listed</th><th>Card position</th></tr>${tierRows}</table>
+        <div class="footnote">“Listed” is this location&#39;s scraped price. “Card position” shows only whether each tier holds at the corporate card or has moved off it — never by how much or in which direction (the card itself is confidential and never shown). Tiers not scraped live are marked accordingly.</div></div>
       <div class="card poscard"><h3>Market position · single 50-min session</h3><div class="posbody">
         <div class="pos-head"><span class="pos-verdict ${v.cls}">${v.word}</span><span class="pos-sub">your ~$${d.slPerSession}<br>vs median $${d.market.median}</span></div>
         <div class="track2"><div class="bar"></div>
