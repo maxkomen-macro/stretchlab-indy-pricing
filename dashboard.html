@@ -531,10 +531,10 @@ function bigChart(series,dir){const w=620,h=200,padL=44,padR=16,padT=16,padB=30;
 function provState(src){
   const m=(src&&src.method)||"", via=(src&&src.via)||"";
   if(m==="scraped") return via==="slug_cache"
-    ? {label:"Slug cache",  cls:"prov-cache", live:true,  short:"cache", tip:"Cached API slug — re-verified live this run"}
-    : {label:"Live scrape", cls:"prov-live",  live:true,  short:"live",  tip:"Scraped live from the studio site this run"};
-  if(m.indexOf("stale")>=0) return {label:"Stale — cached slug failed", cls:"prov-stale", live:false, short:"stale", tip:"Cached slug no longer resolves; showing the retail card, not a live price"};
-  if(m.indexOf("seed")>=0||m==="retail_seed") return {label:"Seed — retail card", cls:"prov-seed", live:false, short:"seed", tip:"Not observed live; national retail-card fallback"};
+    ? {label:"Live (cached lookup)",  cls:"prov-cache", live:true,  short:"live",  tip:"Cached API slug — re-verified live this run"}
+    : {label:"Live", cls:"prov-live",  live:true,  short:"live",  tip:"Scraped live from the studio site this run"};
+  if(m.indexOf("stale")>=0) return {label:"Not live · needs refresh", cls:"prov-stale", live:false, short:"refresh", tip:"Cached slug no longer resolves; showing the retail card, not a live price"};
+  if(m.indexOf("seed")>=0||m==="retail_seed") return {label:"Not live · estimate", cls:"prov-seed", live:false, short:"est.", tip:"Not observed live; national retail-card fallback"};
   if(m==="callin"||m==="phone") return {label:"Phone", cls:"prov-seed", live:false, short:"phone", tip:"Collected by phone, not scraped"};
   return {label:"Source unverified", cls:"prov-stale", live:false, short:"?", tip:"Provenance unknown — treated as not live"};
 }
@@ -644,25 +644,32 @@ function renderSnapshotPanel(){
   const ct={scraped:"Scraped",phone:"Phone",login:"Login",none:"Not found"};
   const vis=visibleSnapComps(d);
   const compRows=vis.length?vis.map(c=>{const dist=miles(d.ll,c.ll).toFixed(1),ps=c.price==null?`<span class="na">${statusLabel(c.status)}</span>`:'$'+c.price,pm=c.perMin==null?'<span class="na">—</span>':'$'+c.perMin.toFixed(2);return `<tr class="crow" onclick="toggleCompRow(this)"><td><span class="caret"></span><span class="cname">${c.name}</span><div class="ctag">${c._t}</div></td><td class="num">${dist} mi</td><td class="num">${ps}</td><td class="num">${pm}</td><td><span class="chip ${c.status}"><span class="d"></span>${ct[c.status]}</span></td></tr><tr class="cdetail" style="display:none"><td colspan="5"><div class="offerwrap">${offerRowsHTML(c)}</div></td></tr>`;}).join(""):`<tr><td colspan="5" style="text-align:center;color:var(--ink-faint);padding:20px">No competitors within ${snapRadius} mi — widen the radius.</td></tr>`;
-  document.getElementById('panel-snapshot').innerHTML=sheadHTML(d)+summaryStripHTML()+`
-    <div class="grid2">
-      <div class="card"><h3>Your pricing · card position by tier</h3><table class="ptable"><tr><th>Tier</th><th>Listed</th><th>Card position</th></tr>${tierRows}</table>
-        <div class="footnote">“Listed” is this location&#39;s scraped price. “Card position” shows only whether each tier holds at the corporate card or has moved off it — never by how much or in which direction (the card itself is confidential and never shown). Tiers not scraped live are marked accordingly.</div></div>
-      <div class="card poscard"><h3>Market position · single 50-min session</h3><div class="posbody">
-        <div class="pos-head"><span class="pos-verdict ${v.cls}">${v.word}</span><span class="pos-sub">your ~$${d.slPerSession}<br>vs median $${d.market.median}</span></div>
-        <div class="track2"><div class="bar"></div>
-          ${barDots(d)}
-          <div class="slflag" style="left:${flagPct}%"><span class="pill"><span class="nm">StretchLab</span><span class="val">$${d.slPerSession}</span></span><span class="stem"></span></div>
-          <div class="medmark" style="left:${medPct}%"></div><div class="medlab" style="left:${medPct}%">median $${d.market.median}</div>
-          <div class="endlab" style="left:0">low<span class="num">$${d.market.min}</span></div><div class="endlab" style="right:0;text-align:right">high<span class="num">$${d.market.max}</span></div>
-        </div>
-        <div class="cdot-legend"><span class="cd"></span>each dot = a nearby direct competitor's per-session price</div></div></div>
-    </div>
+  // LAYOUT ORDER: insight leads, assurance supports. Competitor insight (market position →
+  // map → nearby competitors) is what the viewer doesn't know, so it leads. The card-hold
+  // block (verdict strip + per-studio tier table) is assurance — it confirms the corporate
+  // card is followed — so it sits at the bottom. The provenance badge stays in sheadHTML at
+  // page top: it gates the honesty of EVERY price on the page (the market read below uses the
+  // same scrape), not just card-holds. summaryStripHTML() additionally self-gates per row.
+  // Card-relative framing (deviation / at-card / moved-off) lives ONLY in the two bottom
+  // blocks; the lead is strictly vs-MARKET (verdict(d) = slPerSession vs market.median).
+  document.getElementById('panel-snapshot').innerHTML=sheadHTML(d)+`
+    <div class="card poscard" style="margin-bottom:16px"><h3>Market position · single 50-min session</h3><div class="posbody">
+      <div class="pos-head"><span class="pos-verdict ${v.cls}">${v.word}</span><span class="pos-sub">your ~$${d.slPerSession}<br>vs median $${d.market.median}</span></div>
+      <div class="track2"><div class="bar"></div>
+        ${barDots(d)}
+        <div class="slflag" style="left:${flagPct}%"><span class="pill"><span class="nm">StretchLab</span><span class="val">$${d.slPerSession}</span></span><span class="stem"></span></div>
+        <div class="medmark" style="left:${medPct}%"></div><div class="medlab" style="left:${medPct}%">median $${d.market.median}</div>
+        <div class="endlab" style="left:0">low<span class="num">$${d.market.min}</span></div><div class="endlab" style="right:0;text-align:right">high<span class="num">$${d.market.max}</span></div>
+      </div>
+      <div class="cdot-legend"><span class="cd"></span>each dot = a nearby direct competitor's per-session price</div></div></div>
     <div class="card snapmap-card"><h3>Local map · this studio &amp; nearby competitors (within ${snapRadius} mi)</h3><div id="snapMap" class="snapmap"></div></div>
-    <div class="card"><div class="comp-head"><h3 style="margin:0">Nearby competitors <span style="font-weight:400;color:var(--ink-faint);font-size:11px">within ${snapRadius} mi</span></h3>
+    <div class="card" style="margin-bottom:16px"><div class="comp-head"><h3 style="margin:0">Nearby competitors <span style="font-weight:400;color:var(--ink-faint);font-size:11px">within ${snapRadius} mi</span></h3>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><label class="mb-rad">Radius <select onchange="setSnapRadius(this.value)">${[5,10,15,25,50].map(r=>`<option value="${r}" ${r===snapRadius?'selected':''}>${r} mi</option>`).join('')}</select></label><div class="typetoggle"><button class="${compType==='direct'?'active':''}" onclick="setType('direct')">Direct</button><button class="${compType==='adjacent'?'active':''}" onclick="setType('adjacent')">Adjacent</button><button class="${compType==='both'?'active':''}" onclick="setType('both')">All</button></div></div></div>
       <table class="ctable"><tr><th>Studio</th><th>Distance</th><th>$/session</th><th>$/min</th><th>Source</th></tr>${compRows}</table>
-      <div class="footnote">Distances are straight-line. Per-minute normalizes across session lengths. Adjacent (massage-led) competitors are context, not head-to-head. Unpriced studios carry a status flag — never a fabricated number.</div></div>`;
+      <div class="footnote">Distances are straight-line. Per-minute normalizes across session lengths. Adjacent (massage-led) competitors are context, not head-to-head. Unpriced studios carry a status flag — never a fabricated number.</div></div>`
+    +summaryStripHTML()+`
+    <div class="card"><h3>Your pricing · card position by tier</h3><table class="ptable"><tr><th>Tier</th><th>Listed</th><th>Card position</th></tr>${tierRows}</table>
+      <div class="footnote">“Listed” is this location&#39;s scraped price. “Card position” shows only whether each tier holds at the corporate card or has moved off it — never by how much or in which direction (the card itself is confidential and never shown). Tiers not scraped live are marked accordingly.</div></div>`;
   setTimeout(buildSnapMap,0);
 }
 // Fix 7: each competitor row expands to its captured offer menu, sourced from the top-level
