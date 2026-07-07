@@ -58,6 +58,7 @@ SNAPS.mkdir(exist_ok=True)
 
 STRETCHLAB_RETAIL = DATA / "stretchlab_retail.csv"
 GEOCODE_CACHE = DATA / "geocode_cache.json"
+SLUG_CACHE = DATA / "slug_cache.json"     # last-known-good StretchLab API slugs (discovery fallback)
 
 # ───────────────────────── CONFIG ─────────────────────────
 # In the full tool this graduates to config.yaml. Kept inline here so the
@@ -545,10 +546,13 @@ def annotate_corporate_position(studio, retail):
 
 
 # ── StretchLab microsite pricing API (members.stretchlab.com) ──
-# Each microsite renders its menu client-side from a public JSON endpoint keyed by an
-# API slug (e.g. "stretchlab-north-indy"). The slug is NOT the URL slug ("northindy")
-# and the /api/locations/<slug>/packages PATH is not in the page HTML — but the slug
-# itself is (a server-rendered data-nav-location id + members.stretchlab.com login links).
+# Each microsite renders its menu client-side from a public JSON endpoint keyed by an API slug
+# (e.g. "stretchlab-north-indy"). The slug is NOT the URL slug ("northindy"), and — as of the
+# Jul 2026 site rebuild — it is JS-INJECTED: it is absent from the raw requests() HTML (the
+# requests-path regexes now reliably miss) and only appears in the DOM AFTER a headless render
+# (as data-nav-location ids + members.stretchlab.com links, and in the /api/locations/<slug>/
+# packages call the page's own JS fires). So the Playwright DOM render is the PRIMARY discovery
+# worker; requests is kept only as a cheap first try. A gitignored slug cache backstops both.
 MEMBERS_API = "https://members.stretchlab.com/api/locations"
 _SLUG_RES = [
     re.compile(r"location_id=(stretchlab-[a-z0-9-]+)"),
@@ -557,48 +561,93 @@ _SLUG_RES = [
 ]
 
 
+def _slug_from_html(html):
+    """Most-common API slug matched by _SLUG_RES in `html`, or None. Works on raw OR rendered
+    HTML. Prefers the BASE slug: trainer-specific ids ("stretchlab-north-indy-abby") are longer
+    suffixes of the base, so on a frequency tie we take the shortest match."""
+    hits = []
+    for rx in _SLUG_RES:
+        hits.extend(rx.findall(html or ""))
+    if not hits:
+        return None
+    counts = collections.Counter(hits)
+    top = max(counts.values())
+    return min((s for s, c in counts.items() if c == top), key=len)
+
+
 def _discover_stretchlab_slug(url):
-    """Find a microsite's members.stretchlab.com API slug. requests-on-raw-HTML first
-    (the slug is server-rendered), Playwright network-capture fallback (recon-proven).
-    Returns (slug, how) on success or (None, reason)."""
+    """Find a microsite's members.stretchlab.com API slug. The slug is JS-injected, so the raw
+    requests HTML almost never carries it (kept as a cheap first try); the Playwright DOM render
+    (_slug_via_playwright) is the real worker. Returns (slug, how) or (None, "slug_not_found")."""
     try:
         html = requests.get(url, headers=HEADERS, timeout=20).text
     except Exception as e:
         log.warning("StretchLab slug fetch failed for %s (%s)", url, e)
         html = ""
-    for rx in _SLUG_RES:
-        hits = rx.findall(html)
-        if hits:
-            return collections.Counter(hits).most_common(1)[0][0], "html"
+    slug = _slug_from_html(html)
+    if slug:
+        return slug, "html"
     slug = _slug_via_playwright(url)
-    return (slug, "playwright") if slug else (None, "slug_not_found")
+    return (slug, "render") if slug else (None, "slug_not_found")
 
 
 def _slug_via_playwright(url):
-    """Fallback: load the microsite and capture the slug from the packages request the
-    page's own JS fires (the exact call recon observed). Returns slug or None."""
+    """Primary discovery worker: render the microsite headless and read the API slug from the
+    RENDERED DOM via the same _SLUG_RES regexes. Because the slug is read from page.content()
+    after render, capture no longer RACES the /packages XHR against networkidle (the bug that
+    dropped all 5 studios to seed under full-run contention). A passive response listener still
+    grabs the exact /packages slug opportunistically when it fires first. Returns slug or None.
+    NOTE: Playwright-Python exposes page.expect_response()/wait_for_event(), NOT
+    wait_for_response() — do not reintroduce the latter (proven absent on Page)."""
     if not _have_playwright():
         return None
     try:
         from playwright.sync_api import sync_playwright
-        rx = re.compile(r"/api/locations/(stretchlab-[a-z0-9-]+)/packages")
+        pkg_rx = re.compile(r"/api/locations/(stretchlab-[a-z0-9-]+)/packages")
         found = {}
 
         def _on_response(resp):
-            m = rx.search(resp.url)
+            m = pkg_rx.search(resp.url)
             if m and "slug" not in found:
-                found["slug"] = m.group(1)
+                found["slug"] = m.group(1)          # exact base slug, no trainer suffix
 
         with sync_playwright() as pw:
             browser = pw.chromium.launch(headless=True)
             page = browser.new_page(user_agent=HEADERS["User-Agent"])
             page.on("response", _on_response)
-            page.goto(url, timeout=30000, wait_until="networkidle")
+            try:
+                page.goto(url, timeout=30000, wait_until="domcontentloaded")
+            except Exception as e:
+                log.warning("slug render goto slow/failed for %s (%s) — reading DOM anyway", url, e)
+            # bounded settle: wait for the JS-injected slug to land in the DOM. No networkidle
+            # dependency (flaky under load), no unbounded hang — poll page.content() up to ~8s.
+            html = page.content()
+            for _ in range(8):
+                if found.get("slug") or _slug_from_html(html):
+                    break
+                page.wait_for_timeout(1000)
+                html = page.content()
             browser.close()
-        return found.get("slug")
+        return found.get("slug") or _slug_from_html(html)
     except Exception as e:
         log.warning("slug playwright fallback failed for %s (%s)", url, e)
         return None
+
+
+def _load_slug_cache():
+    """Last-known-good {studio_url: api_slug} map. DISCOVERY fallback only — a cached slug still
+    has to fetch + validate live to earn a 'scraped' label (see scrape_stretchlab)."""
+    if SLUG_CACHE.exists():
+        try:
+            return json.loads(SLUG_CACHE.read_text())
+        except Exception:
+            log.warning("slug_cache.json unreadable — starting fresh")
+    return {}
+
+
+def _write_slug_cache(cache):
+    SLUG_CACHE.write_text(json.dumps(cache, indent=2))
+    log.info("slug cache updated (%d studios)", len(cache))
 
 
 def _fetch_stretchlab_packages(slug):
@@ -679,14 +728,26 @@ def _map_api_package(pkg):
 
 
 def scrape_stretchlab():
-    """Per studio: discover the API slug, GET the packages JSON, map to offers -> scraped.
-    retail_seed is now a genuine FALLBACK only (slug/API failure), logged loudly and never
-    labeled scraped."""
+    """Per studio, discover the API slug -> GET packages JSON -> map to offers (scraped).
+    Discovery order: live discovery (DOM render) -> last-known-good slug cache -> retail_seed.
+    The cache is a DISCOVERY fallback ONLY: a cached slug must still fetch + return a valid
+    packages shape LIVE to earn 'scraped'. A cached slug whose fetch fails or returns an
+    empty/unexpected shape falls through to retail_seed as 'seed_used_stale_slug' (loud, never
+    silently scraped) — same honesty rule as the primary path. retail_seed is the last resort."""
     now = datetime.datetime.now().isoformat(timespec="seconds")
     retail = load_stretchlab_retail()
+    cache = _load_slug_cache()
+    cache_dirty = False
     out = []
     for st in STRETCHLAB["studios"]:
-        slug, how = _discover_stretchlab_slug(st["url"])
+        url = st["url"]
+        slug, how = _discover_stretchlab_slug(url)
+        if slug and cache.get(url) != slug:
+            cache[url] = slug                      # refresh last-known-good
+            cache_dirty = True
+        stale = False
+        if slug is None and cache.get(url):
+            slug, how, stale = cache[url], "slug_cache", True   # DISCOVERY fallback; verify live below
         pkgs = _fetch_stretchlab_packages(slug) if slug else None
         if pkgs:
             offers = [o for o in (_map_api_package(p) for p in pkgs) if o]
@@ -695,7 +756,7 @@ def scrape_stretchlab():
                 _finalize(o)
             studio = {"brand": STRETCHLAB["brand"], "location": st["location"],
                       "address": st["address"],
-                      "source": {"method": "scraped", "url": st["url"],
+                      "source": {"method": "scraped", "url": url,
                                  "api": f"{MEMBERS_API}/{slug}/packages", "collected_at": now},
                       "offers": offers}
             annotate_corporate_position(studio, retail)   # CONFIDENTIAL variance annotation (local only)
@@ -704,12 +765,15 @@ def scrape_stretchlab():
                      st["location"], len(offers), slug, how,
                      f", {addons} add-on" if addons else "")
         else:
-            reason = "api_empty" if slug else how
+            # honesty: a cached slug that won't verify live is stale, NOT scraped -> loud seed tag
+            reason = "stale_slug" if stale else ("api_empty" if slug else how)
             studio = _studio_from_retail(st, retail)
             studio["source"]["method"] = f"seed_used_{reason}"   # never labeled scraped
             log.error("StretchLab %s: API scrape FAILED (%s) -> retail_seed fallback",
                       st["location"], reason)
         out.append(studio)
+    if cache_dirty:
+        _write_slug_cache(cache)
     return out
 
 

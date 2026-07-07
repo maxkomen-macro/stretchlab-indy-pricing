@@ -12,6 +12,7 @@ data/latest.json
 data/latest.js
 data/snapshots/
 data/geocode_cache.json
+data/slug_cache.json
 
 # NOTE: data/manual_entries.example.csv (public competitor template) IS committed.
 
